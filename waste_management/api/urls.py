@@ -5,7 +5,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 # import viewsets
-from .views import WasteRequestViewSet, NotificationViewSet, PaymentViewSet, RefundViewSet, CollectionDetailViewSet, RequestUpdateViewSet, WasteCategoryViewSet, StaffProfileViewSet,  UserViewSet,CityViewSet, PickupDateViewSet, PickupDateByCityView, RegisterView, WasteRequestStatusViewSet, WasteRequestPickupViewSet, InvoiceViewSet, WasteRequestUserUpdateViewSet,CalculatePriceView,CancelWasteRequestStatusView,InvoiceUploadView,CreateRazorpayOrder,FeedbackAPIView, ContactMessageView
+from .views import WasteRequestViewSet, NotificationViewSet, PaymentViewSet, RefundViewSet, CollectionDetailViewSet, RequestUpdateViewSet, WasteCategoryViewSet, StaffProfileViewSet,  CityViewSet, PickupDateViewSet, PickupDateByCityView, RegisterView, WasteRequestStatusViewSet, WasteRequestPickupViewSet, InvoiceViewSet, WasteRequestUserUpdateViewSet,CalculatePriceView,CancelWasteRequestStatusView,InvoiceUploadView,CreateRazorpayOrder,FeedbackAPIView, ContactMessageView,UserProfileView,ChangePasswordView
 
 router = DefaultRouter()
 # router.register(r'pickup-details', WasteRequestPickupViewSet, basename='pickup-detail')
@@ -22,7 +22,7 @@ router.register(r'collection-details', CollectionDetailViewSet)
 router.register(r'request-updates', RequestUpdateViewSet)
 router.register(r'waste-categories', WasteCategoryViewSet)
 router.register(r'staff', StaffProfileViewSet)
-router.register(r'users', UserViewSet)
+# router.register(r'users', UserViewSet)
 router.register(r'cities', CityViewSet)
 router.register(r'pickupdates', PickupDateViewSet)
 router.register(r'invoices', InvoiceViewSet)
@@ -38,7 +38,8 @@ urlpatterns = [
     path('create-razorpay-order/', CreateRazorpayOrder.as_view()),
     path("feedback/<int:waste_request_id>/", FeedbackAPIView.as_view(), name="feedback"),
      path('contact/', ContactMessageView.as_view(), name='contact'),
-   
+   path("profile/", UserProfileView.as_view(), name="user-profile"),
+   path('change-password/', ChangePasswordView.as_view(), name='change-password'),
 ]
 
 if settings.DEBUG:

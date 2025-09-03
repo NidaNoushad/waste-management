@@ -3,7 +3,7 @@ from django.contrib import admin
 from django import forms
 from datetime import datetime
 from .serializers import WasteRequestSerializer
-from .models import WasteRequest, Notification, Payment, Refund, CollectionDetail, RequestUpdate, WasteCategory, StaffProfile, City, PickupDate, WasteRequestStatus, WasteRequestPickup, WasteRequestUserUpdate, WasteRequestCancelled,Invoice,Feedback
+from .models import WasteRequest, Notification, Payment, Refund, CollectionDetail, RequestUpdate, WasteCategory, StaffProfile, City, PickupDate, WasteRequestStatus, WasteRequestPickup, WasteRequestUserUpdate, WasteRequestCancelled,Invoice,Feedback,ContactMessage
 
 
 class InvoiceInline(admin.TabularInline):  # or StackedInline if you want full form style
@@ -59,6 +59,14 @@ class WasteRequestUserUpdateAdmin(admin.ModelAdmin):
     list_display = ("waste_request", "pickup_date", "updated_by", "updated_at")
     list_filter = ("updated_at", "updated_by")
     readonly_fields = ['updated_by', 'updated_at']
+
+
+@admin.register(ContactMessage)
+class ContactMessageAdmin(admin.ModelAdmin):
+    list_display = ('name', 'email', 'phone', 'subject', 'is_member', 'user','created_at')
+    list_filter = ('is_member', 'created_at')
+    search_fields = ('name', 'email', 'subject', 'message')
+    readonly_fields = ('created_at',)
     
 class WasteRequestUserUpdateInline(admin.TabularInline):
     model = WasteRequestUserUpdate

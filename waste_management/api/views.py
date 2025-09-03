@@ -27,8 +27,8 @@ import datetime
 from dateutil.relativedelta import relativedelta
 from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
-from .models import WasteRequest, Notification, Payment, Refund, CollectionDetail, RequestUpdate, WasteCategory, StaffProfile, City, PickupDate, WasteRequestStatus, Invoice,WasteRequestPickup, WasteRequestUserUpdate,WasteRequestCancelled,Feedback
-from .serializers import WasteRequestSerializer, NotificationSerializer, PaymentSerializer, RefundSerializer, CollectionDetailSerializer, RequestUpdateSerializer, WasteCategorySerializer, StaffProfileSerializer, UserSerializer,  CitySerializer, PickupDateSerializer, RegisterSerializer, WasteRequestStatusSerializer, InvoiceSerializer,WasteRequestUserUpdateSerializer,FeedbackSerializer,ContactMessageSerializer
+from .models import WasteRequest, Notification, Payment, Refund, CollectionDetail, RequestUpdate, WasteCategory, StaffProfile, City, PickupDate, WasteRequestStatus, Invoice,WasteRequestPickup, WasteRequestUserUpdate,WasteRequestCancelled,Feedback,UserProfile
+from .serializers import WasteRequestSerializer, NotificationSerializer, PaymentSerializer, RefundSerializer, CollectionDetailSerializer, RequestUpdateSerializer, WasteCategorySerializer, StaffProfileSerializer,   CitySerializer, PickupDateSerializer, RegisterSerializer, WasteRequestStatusSerializer, InvoiceSerializer,WasteRequestUserUpdateSerializer,FeedbackSerializer,ContactMessageSerializer,UserProfileSerializer,ChangePasswordSerializer
 
 
 
@@ -118,6 +118,28 @@ class RegisterView(APIView):
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
             }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        serializer = ChangePasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            user = request.user
+            old_password = serializer.validated_data['old_password']
+
+            # Check old password
+            if not user.check_password(old_password):
+                return Response({"error": "Old password is incorrect"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Set new password
+            user.set_password(serializer.validated_data['new_password'])
+            user.save()
+
+            return Response({"message": "Password changed successfully"}, status=status.HTTP_200_OK)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -702,17 +724,23 @@ class FeedbackAPIView(APIView):
 
 
 class ContactMessageView(APIView):
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    # permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         data = request.data.copy()  # copy data from frontend
         if request.user.is_authenticated:
             data['user'] = request.user.id
             data['is_member'] = True
+        else:
+            data['user'] = None
+            data['is_member'] = False
+            
 
         serializer = ContactMessageSerializer(data=data)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(user=request.user if request.user.is_authenticated else None,
+                    is_member=request.user.is_authenticated)
             return Response({"message": "Message sent successfully!"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -746,36 +774,30 @@ class InvoiceUploadView(APIView):
         return Response({"message": "Invoice uploaded", "invoice_id": invoice.id}, status=status.HTTP_201_CREATED)
 
 
-# class NearestPickupView(APIView):
-#     permission_classes = [IsAuthenticated]
 
-#     def get(self, request):
-#         nearest_request = (
-#             WasteRequest.objects.filter(user=request.user, date__gte=now().date())
-#             .order_by("date")
-#             .first()
-#         )
+class UserProfileView(APIView):
+    permission_classes = [IsAuthenticated]
 
-#         if not nearest_request:
-#             return Response({"message": "No upcoming pickups found."}, status=404)
+    def get(self, request):
+        profile, created = UserProfile.objects.get_or_create(user=request.user)
+        serializer = UserProfileSerializer(profile)
+        return Response(serializer.data)
 
-#         # Get latest status for that pickup date
-#         latest_status_obj = nearest_request.statuses.filter(pickup_date=nearest_request.date).first()
-#         latest_status = latest_status_obj.status if latest_status_obj else nearest_request.status
+    def put(self, request):
+        profile, created = UserProfile.objects.get_or_create(user=request.user)
+        serializer = UserProfileSerializer(profile, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-#         data = {
-#             "id": nearest_request.id,
-#             "status": latest_status,
-#             "date": nearest_request.date.strftime("%Y-%m-%d"),
-#             "address": nearest_request.address,
-#             "category": nearest_request.category,
-#             "subcategory": nearest_request.waste_type,
-#             "staff_name": "Not Assigned",
-#             "staff_contact": "Not Assigned",
-#             "vehicle": "Not Assigned",
-#         }
+# class UserProfileView(generics.RetrieveUpdateAPIView):
+#     serializer_class = UserProfileSerializer
+#     permission_classes = [permissions.IsAuthenticated]
 
-#         return Response(data)
+#     def get_object(self):
+#         return UserProfile.objects.get(user=self.request.user)
+
 
 
 class NotificationViewSet(viewsets.ModelViewSet):
@@ -808,6 +830,6 @@ class StaffProfileViewSet(viewsets.ModelViewSet):
     serializer_class=StaffProfileSerializer
 
 
-class UserViewSet(viewsets.ModelViewSet):
-    queryset=User.objects.all()
-    serializer_class=UserSerializer
+# class UserViewSet(viewsets.ModelViewSet):
+#     queryset=User.objects.all()
+#     serializer_class=UserSerializer

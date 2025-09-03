@@ -2,7 +2,7 @@ from rest_framework import serializers
 from datetime import timedelta
 import datetime
 # from dateutil.relativedelta import relativedelta
-from .models import WasteRequest, Notification, Payment, Refund, CollectionDetail, RequestUpdate, WasteCategory, StaffProfile, City, PickupDate, UserProfile, WasteRequestStatus, Invoice, WasteRequestPickup,WasteRequestUserUpdate,Feedback,ContactMessage
+from .models import WasteRequest, Notification, Payment, Refund, CollectionDetail, RequestUpdate, WasteCategory, StaffProfile, City, PickupDate, UserProfile, WasteRequestStatus, Invoice, WasteRequestPickup,WasteRequestUserUpdate,Feedback,ContactMessage,UserProfile
 from django.contrib.auth.models import User
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -59,8 +59,8 @@ class FeedbackSerializer(serializers.ModelSerializer):
 class ContactMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContactMessage
-        fields = '__all__'
-        read_only_fields = ['user', 'is_member', 'created_at']
+        fields =  ['id', 'user', 'is_member', 'name', 'email', 'phone', 'subject', 'message', 'created_at']
+        read_only_fields =  ['id', 'created_at', 'user', 'is_member'] 
 
 class WasteRequestSerializer(serializers.ModelSerializer):
     invoices = InvoiceSerializer(many=True, read_only=True)
@@ -249,28 +249,81 @@ class WasteRequestUserUpdateSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "updated_by", "updated_at"]
 
 
+class UserProfileSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(source="user.email", required=False)
+    full_name = serializers.CharField(source="user.first_name", required=False)
+  
 
-# class NearestPickupSerializer(serializers.ModelSerializer):
-#     nearest_pickup_date = serializers.SerializerMethodField()
+    class Meta:
+        model = UserProfile
+        fields = ["full_name", "email", "phone_number", "address", "city", "zip_code"]
+
+    # def get_full_name(self, obj):
+    #      return f"{obj.user.first_name} {obj.user.last_name}".strip()
+
+    def update(self, instance, validated_data):
+        # update user fields
+        user_data = validated_data.pop("user", {})
+        user = instance.user
+       # update email
+        if "email" in user_data:
+            user.email = user_data["email"]
+
+
+        if "first_name" in user_data:
+            user.first_name = user_data["first_name"]
+
+        # update full_name (split into first/last)
+        # full_name = self.context["request"].data.get("full_name")
+        # if full_name:
+        #     parts = full_name.strip().split(" ", 1)
+        #     user.first_name = parts[0]
+        #     user.last_name = parts[1] if len(parts) > 1 else ""
+
+        user.save()
+
+        # update profile fields
+        # instance.phone_number = validated_data.get("phone", instance.phone_number)
+        # instance.address = validated_data.get("address", instance.address)
+        # instance.city = validated_data.get("city", instance.city)
+        # instance.zip_code = validated_data.get("zip_code", instance.zip_code)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+       
+        instance.save()
+
+        return instance
+
+# class UserProfileSerializer(serializers.ModelSerializer):
+#     email = serializers.EmailField(source="user.email", required=True)
 
 #     class Meta:
-#         model = WasteRequest
-#         fields = ["order_id", "status", "nearest_pickup_date"]
+#         model = UserProfile
+#         fields = ["id", "full_name", "phone_number", "email"]
 
-#     def get_nearest_pickup_date(self, obj):
-#         """Return the soonest valid pickup date from pickup_dates JSONField."""
-#         if not obj.pickup_dates:
-#             return None
-#         today = datetime.date.today()
-#         valid_dates = [
-#             datetime.datetime.strptime(d, "%Y-%m-%d").date()
-#             for d in obj.pickup_dates
-#             if d
-#         ]
-#         future_dates = [d for d in valid_dates if d >= today]
-#         if future_dates:
-#             return min(future_dates).strftime("%Y-%m-%d")
-#         return None
+#     def update(self, instance, validated_data):
+#         # Update nested user email
+#         user_data = validated_data.pop("user", {})
+#         email = user_data.get("email")
+#         if email:
+#             instance.user.email = email
+#             instance.user.save()
+
+#         # Update UserProfile fields
+#         return super().update(instance, validated_data)
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+    confirm_password = serializers.CharField(required=True)
+
+    def validate(self, data):
+        if data['new_password'] != data['confirm_password']:
+            raise serializers.ValidationError("New passwords do not match")
+        return data
+
+
 
 
 
@@ -314,9 +367,9 @@ class StaffProfileSerializer(serializers.ModelSerializer):
     model = StaffProfile
     fields = '__all__'
   
-class UserSerializer(serializers.ModelSerializer):
-  class Meta:
-    model = User
-    fields = ['id', 'username', 'email']
+# class UserSerializer(serializers.ModelSerializer):
+#   class Meta:
+#     model = User
+#     fields = ['id', 'username', 'email']
 
   
