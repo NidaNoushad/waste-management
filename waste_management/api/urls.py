@@ -3,10 +3,12 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib.auth import views as auth_views
+from rest_framework_simplejwt.views import TokenRefreshView
+
 
 # import viewsets
-from .views import WasteRequestViewSet, NotificationViewSet, PaymentViewSet, RefundViewSet, CollectionDetailViewSet, RequestUpdateViewSet, WasteCategoryViewSet, StaffProfileViewSet,  CityViewSet, PickupDateViewSet, PickupDateByCityView, RegisterView, WasteRequestStatusViewSet, WasteRequestPickupViewSet, InvoiceViewSet, WasteRequestUserUpdateViewSet,CalculatePriceView,CancelWasteRequestStatusView,InvoiceUploadView,CreateRazorpayOrder,FeedbackAPIView, ContactMessageView,UserProfileView,ChangePasswordView
-
+from .views import WasteRequestViewSet, NotificationViewSet, PaymentViewSet, RefundViewSet, CollectionDetailViewSet, RequestUpdateViewSet, WasteCategoryViewSet, StaffProfileViewSet,  CityViewSet, PickupDateViewSet, PickupDateByCityView, RegisterView, WasteRequestStatusViewSet, WasteRequestPickupViewSet, InvoiceViewSet, WasteRequestUserUpdateViewSet,CalculatePriceView,CancelWasteRequestStatusView,InvoiceUploadView,FeedbackAPIView, ContactMessageView,UserProfileView,ChangePasswordView,PasswordResetRequestView, PasswordResetConfirmView,MyTokenObtainPairView, CreateRazorpayOrderView, VerifyPaymentView
 router = DefaultRouter()
 # router.register(r'pickup-details', WasteRequestPickupViewSet, basename='pickup-detail')
 # feedback = FeedbackViewSet.as_view({'post': 'create_or_update_feedback'})
@@ -30,16 +32,30 @@ router.register(r'invoices', InvoiceViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+     path('api/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('cities/<int:city_id>/pickupdates/', PickupDateByCityView.as_view(), name='pickup-dates-by-city' ),
     path('register/', RegisterView.as_view(), name='register'),
     path('calculate-price/', CalculatePriceView.as_view()),
     path("user-cancel-request/<int:waste_request_id>/", CancelWasteRequestStatusView.as_view(), name="user-cancel-request"),
     path("invoices/upload/", InvoiceUploadView.as_view(), name="invoice-upload"),
-    path('create-razorpay-order/', CreateRazorpayOrder.as_view()),
+    path('create-razorpay-order/', CreateRazorpayOrderView.as_view(), name='create-razorpay-order'),
+    path('verify-payment/', VerifyPaymentView.as_view(), name='verify-payment'),
+
+    # path('create-razorpay-order/', CreateRazorpayOrder.as_view()),
     path("feedback/<int:waste_request_id>/", FeedbackAPIView.as_view(), name="feedback"),
-     path('contact/', ContactMessageView.as_view(), name='contact'),
+    path('contact/', ContactMessageView.as_view(), name='contact'),
    path("profile/", UserProfileView.as_view(), name="user-profile"),
+   path('password-reset/', PasswordResetRequestView.as_view(), name='password_reset_request'),
+    path('reset/<str:uid>/<str:token>/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
    path('change-password/', ChangePasswordView.as_view(), name='change-password'),
+
+
+
+
+ 
+
+
 ]
 
 if settings.DEBUG:

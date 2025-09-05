@@ -14,7 +14,7 @@ class UserProfile(models.Model):
     phone_number = models.CharField(max_length=15)
     address = models.TextField(blank=True, null=True)
     city = models.CharField(max_length=100, blank=True, null=True)
-    zip_code = models.CharField(max_length=10, blank=True, null=True)
+    zipcode = models.CharField(max_length=10, blank=True, null=True)
 
     def __str__(self):
         return self.user.username
@@ -51,6 +51,7 @@ class WasteRequest(models.Model):
     email = models.EmailField(blank=True, null=True)
     phone = models.CharField(max_length=10, null=True, blank=True)
     address = models.TextField(null=True, blank=True)
+    zipcode = models.CharField(max_length=6, blank=True, null=True) 
     city = models.CharField(max_length=50, blank=True, null=True)
     date = models.DateField(blank=True, null=True)
     waste_type = models.CharField(max_length=20, null=True, blank=True)

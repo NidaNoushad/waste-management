@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 import os
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -60,7 +61,14 @@ MIDDLEWARE = [
 
 CORS_ALLOWED_ORIGINS =[
     "http://localhost:3000",
+     "http://127.0.0.1:3000",
 ]
+CORS_ALLOW_ALL_ORIGINS = True
+
+CORS_ALLOW_CREDENTIALS = True
+
+
+
 ROOT_URLCONF = 'waste_management.urls'
 
 TEMPLATES = [
@@ -112,6 +120,10 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
@@ -147,6 +159,8 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'AUTH_HEADER_TYPES': ('Bearer',),
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
 }
 
 LOGIN_REDIRECT_URL = '/api/'
@@ -159,6 +173,23 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = '11nids11@gmail.com'          # replace with your Gmail
 EMAIL_HOST_PASSWORD = 'pyitrtdslmtofnyf'        # Gmail app password
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+
+
+
+# For production
+# EMAIL_HOST=your-smtp-server.com
+# FRONTEND_URL=https://yourdomain.com
+
+
+
+
+# Frontend URL for reset links
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
+
+
+
+
 
 
 RAZORPAY_KEY_ID="rzp_test_RAONx9ceY2LHYG"

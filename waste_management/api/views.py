@@ -9,7 +9,15 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.views.decorators.csrf import csrf_exempt
 from decimal import Decimal
 from django.utils.decorators import method_decorator
+from rest_framework import serializers
+import logging
 # from .utils.invoice_utils import  save_invoice
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
+from django.contrib.auth import get_user_model
 
 from .utils import calculate_pickup_price
 from django.utils.timezone import now
@@ -21,6 +29,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.decorators import action
 from rest_framework.response import Response
 # from rest_framework.pagination import PageNumberPagination
+
+
+
 from django.utils import timezone
 from datetime import date, timedelta
 import datetime
@@ -28,84 +39,217 @@ from dateutil.relativedelta import relativedelta
 from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
 from .models import WasteRequest, Notification, Payment, Refund, CollectionDetail, RequestUpdate, WasteCategory, StaffProfile, City, PickupDate, WasteRequestStatus, Invoice,WasteRequestPickup, WasteRequestUserUpdate,WasteRequestCancelled,Feedback,UserProfile
-from .serializers import WasteRequestSerializer, NotificationSerializer, PaymentSerializer, RefundSerializer, CollectionDetailSerializer, RequestUpdateSerializer, WasteCategorySerializer, StaffProfileSerializer,   CitySerializer, PickupDateSerializer, RegisterSerializer, WasteRequestStatusSerializer, InvoiceSerializer,WasteRequestUserUpdateSerializer,FeedbackSerializer,ContactMessageSerializer,UserProfileSerializer,ChangePasswordSerializer
+from .serializers import WasteRequestSerializer, NotificationSerializer, PaymentSerializer, RefundSerializer, CollectionDetailSerializer, RequestUpdateSerializer, WasteCategorySerializer, StaffProfileSerializer,   CitySerializer, PickupDateSerializer, RegisterSerializer, WasteRequestStatusSerializer, InvoiceSerializer,WasteRequestUserUpdateSerializer,FeedbackSerializer,ContactMessageSerializer,UserProfileSerializer,ChangePasswordSerializer,PasswordResetRequestSerializer, PasswordResetConfirmSerializer,MyTokenObtainPairSerializer
 
 
 
 # Create your views here.
-client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
-
-
-class CreateRazorpayOrder(APIView):
-    
+logger = logging.getLogger(__name__)
+class CreateRazorpayOrderView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        amount = request.data.get("amount")
-        email = request.data.get("email") 
-        contact = request.data.get("contact") 
-        if not amount or amount <= 0:
-            return Response({"error": "Invalid amount"}, status=400)
-
+    def post(self, request, *args, **kwargs):
+        """
+        Create Razorpay order with auto-capture enabled
+        """
         try:
-            data = {
-                "amount": int(amount * 100),  # paise
-                "currency": "INR",
-                "payment_capture": 1,
-                 "notes": {                     
-                    "email": email,
-                    "contact": contact
+            amount = request.data.get('amount')
+            if not amount:
+                return Response({'error': 'Amount is required'}, status=400)
+
+            # Convert to paisa (Razorpay expects amount in paisa)
+            amount_in_paisa = int(float(amount) * 100)
+
+            # Create order
+            order_data = {
+                'amount': amount_in_paisa,
+                'currency': 'INR',
+                'payment_capture': 1,  # Auto-capture
+                'notes': {
+                    'user_id': request.user.id,
+                    'email': request.user.email
                 }
             }
-            razorpay_order = client.order.create(data)
+
+            order = razorpay_client.order.create(data=order_data)
+
             return Response({
-                "razorpay_order_id": razorpay_order['id'],
-                "amount": data['amount'],
-                "currency": data['currency'],
-            })
+                'id': order['id'],
+                'amount': order['amount'],
+                'currency': order['currency'],
+                'status': order['status']
+            }, status=201)
+
         except Exception as e:
-            return Response({"error": str(e)}, status=400)
+            print(f"Razorpay order creation error: {str(e)}")
+            return Response({'error': 'Failed to create payment order'}, status=500)
 
-def initiate_razorpay_refund(transaction_id, amount):
-    """
-    Create a refund in Razorpay (amount in INR)
-    Returns: dict with refund_id and status
-    """
-    try:
-        refund = client.payment.refund(transaction_id, {
-            "amount": int(amount * 100)  # convert to paise
-        })
-        return {"refund_id": refund.get("id"), "status": refund.get("status"), "error": None}
-    except Exception as e:
-        return {"error": str(e), "refund_id": None, "status": "failed"}
 
-# class RefundPayment(APIView):
+class VerifyPaymentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        """
+        Verify Razorpay payment signature
+        """
+        try:
+            razorpay_order_id = request.data.get('razorpay_order_id')
+            razorpay_payment_id = request.data.get('razorpay_payment_id')
+            razorpay_signature = request.data.get('razorpay_signature')
+            waste_request_id = request.data.get('waste_request_id')  
+            
+
+            params_dict = {
+                'razorpay_order_id': razorpay_order_id,
+                'razorpay_payment_id': razorpay_payment_id,
+                'razorpay_signature': razorpay_signature
+            }
+
+            try:
+                razorpay_client.utility.verify_payment_signature(params_dict)
+
+                # Fetch payment details
+                payment = razorpay_client.payment.fetch(razorpay_payment_id)
+
+                if waste_request_id:
+                    # from .models import WasteRequest  
+                    try:
+                        waste_request = WasteRequest.objects.get(id=waste_request_id)
+                        waste_request.payment_status = "Paid"
+                        waste_request.transaction_id = razorpay_payment_id
+                        waste_request.razorpay_order_id = razorpay_order_id
+                        waste_request.razorpay_signature = razorpay_signature
+                        waste_request.save()
+                    except WasteRequest.DoesNotExist:
+                        return Response({"error": "Waste request not found"}, status=404)
+
+                return Response({
+                    'status': 'success',
+                    'payment_id': razorpay_payment_id,
+                    'payment_status': payment['status'],
+                    'amount': payment['amount'] / 100,  # rupees
+                    'method': payment['method']
+                })
+
+            except razorpay.errors.SignatureVerificationError:
+                return Response({'error': 'Invalid payment signature'}, status=400)
+
+        except Exception as e:
+            print(f"Payment verification error: {str(e)}")
+            return Response({'error': 'Payment verification failed'}, status=500)
+
+
+
+# class CreateRazorpayOrder(APIView):
+    
 #     permission_classes = [IsAuthenticated]
 
 #     def post(self, request):
-#         payment_id = request.data.get("payment_id")
-#         amount = request.data.get("amount")  # in rupees
-
-#         if not payment_id:
-#             return Response({"error": "Payment ID is required"}, status=400)
+#         amount = request.data.get("amount")
+#         email = request.data.get("email") 
+#         contact = request.data.get("contact") 
+#         if not amount or amount <= 0:
+#             return Response({"error": "Invalid amount"}, status=400)
 
 #         try:
-#             refund = client.payment.refund(
-#                 payment_id,
-#                 {
-#                     "amount": int(amount * 100),  # paise
+#             data = {
+#                 "amount": int(amount * 100),  # paise
+#                 "currency": "INR",
+#                 "payment_capture": 1,
+#                  "notes": {                     
+#                     "email": email,
+#                     "contact": contact
 #                 }
-#             )
-
+#             }
+#             razorpay_order = client.order.create(data)
 #             return Response({
-#                 "refund_id": refund["id"],
-#                 "status": refund["status"],
-#                 "amount": refund["amount"],
+#                 "razorpay_order_id": razorpay_order['id'],
+#                 "amount": data['amount'],
+#                 "currency": data['currency'],
 #             })
 #         except Exception as e:
 #             return Response({"error": str(e)}, status=400)
 
+def initiate_razorpay_refund(transaction_id, amount):
+    """
+    Initiate refund through Razorpay
+    
+    Args:
+        transaction_id (str): Razorpay payment ID
+        amount (float): Amount to refund
+    
+    Returns:
+        dict: Refund details or error info
+    """
+    try:
+        # Convert amount to paise (Razorpay uses paise)
+        refund_amount = int(float(amount) * 100)
+        
+        # Create refund
+        refund = razorpay_client.payment.refund(transaction_id, {
+            "amount": refund_amount,
+            "speed": "optimum",  # or "normal"
+            "notes": {
+                "reason": "User cancellation",
+                "initiated_by": "system"
+            }
+        })
+        
+        logger.info(f"Refund successful: {refund['id']} for payment: {transaction_id}")
+        
+        return {
+            "success": True,
+            "refund_id": refund['id'],
+            "status": refund['status'],  # "processed", "pending", etc.
+            "amount": float(refund['amount']) / 100,  # Convert back from paise
+            "created_at": refund['created_at'],
+            "razorpay_response": refund
+        }
+        
+    except razorpay.errors.BadRequestError as e:
+        logger.error(f"Razorpay bad request: {str(e)}")
+        return {
+            "success": False,
+            "error": f"Invalid request: {str(e)}",
+            "status": "failed"
+        }
+        
+    except razorpay.errors.ServerError as e:
+        logger.error(f"Razorpay server error: {str(e)}")
+        return {
+            "success": False,
+            "error": "Payment service unavailable",
+            "status": "failed"
+        }
+        
+    except Exception as e:
+        logger.error(f"Refund failed: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e),
+            "status": "failed"
+        }
+
+
+# def initiate_razorpay_refund(transaction_id, amount):
+#     """
+#     Create a refund in Razorpay (amount in INR)
+#     Returns: dict with refund_id and status
+#     """
+#     try:
+#         refund = client.payment.refund(transaction_id, {
+#             "amount": int(amount * 100)  # convert to paise
+#         })
+#         return {"refund_id": refund.get("id"), "status": refund.get("status"), "error": None}
+#     except Exception as e:
+#         return {"error": str(e), "refund_id": None, "status": "failed"}
+
+
+
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -119,6 +263,137 @@ class RegisterView(APIView):
                 'access': str(refresh.access_token),
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+#     @classmethod
+#     def get_token(cls, user):
+#         token = super().get_token(user)
+#         # Add custom claims if needed
+#         token['email'] = user.email
+#         return token
+
+#     def validate(self, attrs):
+#         email = attrs.get("email")
+#         password = attrs.get("password")
+
+#         # Authenticate using email
+#         try:
+#             user = User.objects.get(email=email)
+#         except User.DoesNotExist:
+#             raise serializers.ValidationError("No account found with this email.")
+
+#         if not user.check_password(password):
+#             raise serializers.ValidationError("Invalid password.")
+
+#         if not user.is_active:
+#             raise serializers.ValidationError("This account is inactive.")
+
+#         data = super().validate({
+#             "username": user.username,  # JWT still needs username internally
+#             "password": password
+#         })
+
+#         data["email"] = user.email
+#         return data
+
+
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['email'] = user.email
+        return token
+
+    def validate(self, attrs):
+        email = attrs.get("email")
+        password = attrs.get("password")
+
+        # find user by email
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            raise serializers.ValidationError("No account found with this email.")
+
+        # check password
+        if not user.check_password(password):
+            raise serializers.ValidationError("Invalid password.")
+
+        if not user.is_active:
+            raise serializers.ValidationError("This account is inactive.")
+
+        # call parent with username (JWT requires username internally)
+        data = super().validate({
+            "username": user.username,
+            "password": password
+        })
+
+        data["email"] = user.email
+        return data
+
+
+# class MyTokenObtainPairView(TokenObtainPairView):
+#     serializer_class = MyTokenObtainPairSerializer
+
+
+
+
+
+class PasswordResetRequestView(APIView):
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                return Response({
+                    'message': 'Password reset email sent successfully.'
+                }, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({
+                    'error': 'Failed to send email. Please try again later.'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response({
+            'error': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+    
+    def post(self, request, uid, token):
+        try:
+            user_id = force_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(pk=user_id)
+            
+            if not default_token_generator.check_token(user, token):
+                return Response({
+                    'error': 'Invalid or expired token.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            serializer = PasswordResetConfirmSerializer(data=request.data)
+            
+            if serializer.is_valid():
+                user.set_password(serializer.validated_data['new_password1'])
+                user.save()
+                
+                return Response({
+                    'message': 'Password reset successful.'
+                }, status=status.HTTP_200_OK)
+            else:
+                print(serializer.errors) 
+
+            
+                return Response({
+                'error': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response({
+                'error': 'Invalid reset link.'
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ChangePasswordView(APIView):
@@ -257,57 +532,161 @@ class WasteRequestViewSet(viewsets.ModelViewSet):
         data = [{"order_id": o.order_id} for o in qs]
         return Response(data)
 
-
-        
-
-    @action(detail=True, methods=['post'])
-    def confirm_payment(self, request, pk=None):
-        order = self.get_object()
-        payment_method = request.data.get('payment_method')
+    @action(detail=True, methods=['post'])     
+    def confirm_payment(self, request, pk=None):         
+        order = self.get_object()         
+        payment_method = request.data.get('payment_method')         
         razorpay_payment_id = request.data.get('razorpay_payment_id')
+        transaction_id = request.data.get('transaction_id')  # 🔥 ADD THIS LINE
+          
+        if payment_method not in ["Cash on Pickup", "UPI", "Card"]:             
+            return Response({"error": "Invalid payment method"}, status=status.HTTP_400_BAD_REQUEST)          
 
-        if payment_method not in ["Cash on Pickup", "UPI", "Card"]:
-            return Response({"error": "Invalid payment method"}, status=status.HTTP_400_BAD_REQUEST)
+        order.payment_method = payment_method         
+             
+    # Payment status logic         
+        if payment_method == "Cash on Pickup":           
+            order.payment_status = "Pending"         
+        elif payment_method in ["UPI", "Card"]:             
+            if razorpay_payment_id or transaction_id:  # 🔥 UPDATED CONDITION
+                order.payment_status = "Paid"                 
+                order.transaction_id = razorpay_payment_id or transaction_id  # 🔥 UPDATED
+            else:                 
+                order.payment_status = "Pending"         
+                 
+        order.save()  # save the order first                 
 
-        order.payment_method = payment_method
-        # For cash on pickup, payment_status stays Pending
-        # For online, also Pending here until payment gateway confirms success
+    # 🔥 SEND EMAIL FOR ALL PAYMENT METHODS
+        try:                 
+            print(f"Sending email to: {order.email}")
         
-    # Payment status logic
-        if payment_method == "Cash on Pickup":
-          order.payment_status = "Pending"
-        elif payment_method in ["UPI", "Card"]:
-            if razorpay_payment_id:
-                order.payment_status = "Paid"
-                order.transaction_id = razorpay_payment_id
-            else:
-                order.payment_status = "Pending"
-        # order.payment_status = "Pending"
+        # Format pickup dates for display
+            pickup_dates_str = "Not specified"
+            if order.pickup_dates and len(order.pickup_dates) > 0:
+                if len(order.pickup_dates) == 1:
+                    pickup_dates_str = order.pickup_dates[0]
+                else:
+                    pickup_dates_str = ", ".join(order.pickup_dates)
+
+        # Different email content based on payment method
+            if payment_method == "Cash on Pickup":
+                email_subject = "Order Confirmation - TrashGo (Cash on Pickup)"
+                email_message = f"""Hello {order.name},
+
+Your order #{order.order_id} has been confirmed!
+
+Order Details:
+- Order ID: #{order.order_id}
+- Waste Type: {order.waste_type or 'Not specified'}
+- Category: {order.category or 'Not specified'}
+- Weight: {order.weight or 'Not specified'} kg
+- Pickup Address: {order.address}
+- Pickup Dates: {pickup_dates_str}
+- Payment Method: Cash on Pickup
+- Amount to Pay: ₹{order.final_amount}
+
+Our team will pick up your waste on the scheduled date(s). Please have the exact amount ready for payment.
+
+Thank you for choosing TrashGo!
+
+Best regards,
+TrashGo Team"""
+
+            elif payment_method in ["UPI", "Card"]:
+                email_subject = "Payment Successful - TrashGo"
+                email_message = f"""Hello {order.name},
+
+Your payment has been successfully processed!
+
+Order Details:
+- Order ID: #{order.order_id}
+- Waste Type: {order.waste_type or 'Not specified'}
+- Category: {order.category or 'Not specified'}
+- Weight: {order.weight or 'Not specified'} kg
+- Pickup Address: {order.address}
+- Pickup Dates: {pickup_dates_str}
+- Payment Method: {order.payment_method}
+- Payment Status: {order.payment_status}
+- Transaction ID: {order.transaction_id or 'N/A'}
+- Amount Paid: ₹{order.final_amount}
+
+Our team will pick up your waste on the scheduled date(s).
+
+Thank you for choosing TrashGo!
+
+Best regards,
+TrashGo Team"""
+        
+            send_mail(                 
+            subject=email_subject,                 
+            message=email_message,                 
+            from_email=settings.DEFAULT_FROM_EMAIL,                 
+            recipient_list=[order.email],                 
+            fail_silently=False,                 
+        )                 
+            print("Email sent successfully")             
+        except Exception as e:                  
+            print(f"Email sending failed: {e}")                      
+
+        return Response({             
+        "message": "Payment confirmed and email sent.",             
+        "order_id": order.id,             
+        "payment_method": order.payment_method,             
+        "payment_status": order.payment_status,
+        "transaction_id": order.transaction_id,  # 🔥 INCLUDE IN RESPONSE
+    })
+
+
+        
+
+    # @action(detail=True, methods=['post'])
+    # def confirm_payment(self, request, pk=None):
+    #     order = self.get_object()
+    #     payment_method = request.data.get('payment_method')
+    #     razorpay_payment_id = request.data.get('razorpay_payment_id')
+
+    #     if payment_method not in ["Cash on Pickup", "UPI", "Card"]:
+    #         return Response({"error": "Invalid payment method"}, status=status.HTTP_400_BAD_REQUEST)
+
+    #     order.payment_method = payment_method
+    #     # For cash on pickup, payment_status stays Pending
+    #     # For online, also Pending here until payment gateway confirms success
+        
+    # # Payment status logic
+    #     if payment_method == "Cash on Pickup":
+    #       order.payment_status = "Pending"
+    #     elif payment_method in ["UPI", "Card"]:
+    #         if razorpay_payment_id:
+    #             order.payment_status = "Paid"
+    #             order.transaction_id = razorpay_payment_id
+    #         else:
+    #             order.payment_status = "Pending"
+    #     # order.payment_status = "Pending"
        
-        order.save()  # save the order first
+    #     order.save()  # save the order first
        
-        if payment_method == "Cash on Pickup":
-            try:
-                print(f"Sending email to: {order.email}")
-                send_mail(
-                subject="Order Confirmation - TrashGo",
-                message=f"Hello {order.name},\n\nYour order #{order.order_id} has been confirmed. Our team will pick up your waste as scheduled.\n\nThank you for choosing TrashGo!",
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[order.email],
-                fail_silently=False,
-                )
-                print("Email sent successfully")
-            except Exception as e:
-                 print(f"Email sending failed: {e}")
+    #     if payment_method == "Cash on Pickup":
+    #         try:
+    #             print(f"Sending email to: {order.email}")
+    #             send_mail(
+    #             subject="Order Confirmation - TrashGo",
+    #             message=f"Hello {order.name},\n\nYour order #{order.order_id} has been confirmed. Our team will pick up your waste as scheduled.\n\nThank you for choosing TrashGo!",
+    #             from_email=settings.DEFAULT_FROM_EMAIL,
+    #             recipient_list=[order.email],
+    #             fail_silently=False,
+    #             )
+    #             print("Email sent successfully")
+    #         except Exception as e:
+    #              print(f"Email sending failed: {e}")
            
 
-        return Response({
-            "message": "Payment method saved, order updated.",
-            "order_id": order.id,
-            "payment_method": order.payment_method,
-            "payment_status": order.payment_status,
-            # "pickup_dates": order.pickup_dates,
-        })
+    #     return Response({
+    #         "message": "Payment method saved, order updated.",
+    #         "order_id": order.id,
+    #         "payment_method": order.payment_method,
+    #         "payment_status": order.payment_status,
+    #         # "pickup_dates": order.pickup_dates,
+    #     })
 
 
 class WasteRequestStatusViewSet(viewsets.ModelViewSet):
@@ -772,6 +1151,9 @@ class InvoiceUploadView(APIView):
         )
 
         return Response({"message": "Invoice uploaded", "invoice_id": invoice.id}, status=status.HTTP_201_CREATED)
+
+
+
 
 
 

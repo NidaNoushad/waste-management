@@ -1,10 +1,48 @@
 from rest_framework import serializers
 from datetime import timedelta
 import datetime
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 # from dateutil.relativedelta import relativedelta
 from .models import WasteRequest, Notification, Payment, Refund, CollectionDetail, RequestUpdate, WasteCategory, StaffProfile, City, PickupDate, UserProfile, WasteRequestStatus, Invoice, WasteRequestPickup,WasteRequestUserUpdate,Feedback,ContactMessage,UserProfile
 from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
 from decimal import Decimal, ROUND_HALF_UP
+from django.core.mail import send_mail
+from django.conf import settings
+import re
+
+
+# class RegisterSerializer(serializers.ModelSerializer):
+#     full_name = serializers.CharField(write_only=True)
+#     phone_number = serializers.CharField(write_only=True)
+#     password = serializers.CharField(write_only=True, style={'input_type': 'password'})
+#     password2 = serializers.CharField(write_only=True, style={'input_type': 'password'})
+
+#     class Meta:
+#         model = User
+#         fields = ['username', 'email', 'password', 'password2' ,'full_name', 'phone_number']
+    
+#     def validate(self, attrs):
+#         if attrs['password'] != attrs['password2']:
+#             raise serializers.ValidationError({"password2":"Passwords do not match."})
+#         if not attrs['phone_number'].isdigit() or len(attrs['phone_number'])!=10:
+#             raise serializers.ValidationError({"phone_number":"phone number must be exact 10 digits"})
+#         return attrs
+
+#     def create(self, validated_data):
+        
+#         full_name = validated_data.pop('full_name')
+#         phone_number = validated_data.pop('phone_number')
+#         validated_data.pop('password2')
+#         validated_data['username']=full_name
+#         user = User.objects.create_user(**validated_data)
+#         UserProfile.objects.create(user=user, full_name=full_name, phone_number=phone_number)
+#         return user
+
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    username_field = "email"
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -15,24 +53,112 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'password2' ,'full_name', 'phone_number']
-    
+        fields = ['email', 'password', 'password2', 'full_name', 'phone_number']
+
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError({"password2":"Passwords do not match."})
-        if not attrs['phone_number'].isdigit() or len(attrs['phone_number'])!=10:
-            raise serializers.ValidationError({"phone_number":"phone number must be exact 10 digits"})
+            raise serializers.ValidationError({"password2": "Passwords do not match."})
+        if not attrs['phone_number'].isdigit() or len(attrs['phone_number']) != 10:
+            raise serializers.ValidationError({"phone_number": "Phone number must be 10 digits"})
         return attrs
 
     def create(self, validated_data):
-        
         full_name = validated_data.pop('full_name')
         phone_number = validated_data.pop('phone_number')
         validated_data.pop('password2')
-        validated_data['username']=full_name
-        user = User.objects.create_user(**validated_data)
+
+        # use email as username internally
+        user = User.objects.create_user(
+            username=validated_data['email'],
+            email=validated_data['email'],
+            password=validated_data['password']
+        )
+
         UserProfile.objects.create(user=user, full_name=full_name, phone_number=phone_number)
         return user
+
+    def to_representation(self, instance):
+        """Customize response to include profile details"""
+        representation = super().to_representation(instance)
+        representation['full_name'] = instance.profile.full_name
+        representation['phone_number'] = instance.profile.phone_number
+        return representation
+
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        try:
+            user = User.objects.get(email=value)
+        except User.DoesNotExist:
+            raise serializers.ValidationError("No user found with this email address.")
+        return value
+
+    def save(self):
+        email = self.validated_data['email']
+        user = User.objects.get(email=email)
+        
+        # Generate token and uid
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        
+        # Create reset link
+        reset_link = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}/"
+        
+        # Send email
+        subject = 'Password Reset Request'
+        message = f'''
+        Hello {user.username},
+
+        You have requested to reset your password. Please click the link below to reset your password:
+
+        {reset_link}
+
+        If you didn't request this, please ignore this email.
+
+        Best regards,
+        Your App Team
+        '''
+        
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [email],
+            fail_silently=False,
+        )
+        
+        return user
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    new_password1 = serializers.CharField(write_only=True)
+    new_password2 = serializers.CharField(write_only=True)
+
+    def validate_new_password1(self, value):
+        # Add password validation rules
+        if len(value) < 8:
+            raise serializers.ValidationError("Password must be at least 8 characters long.")
+        
+        if not re.search(r"[A-Z]", value):
+            raise serializers.ValidationError("Password must contain at least one uppercase letter.")
+        
+        if not re.search(r"[a-z]", value):
+            raise serializers.ValidationError("Password must contain at least one lowercase letter.")
+        
+        if not re.search(r"\d", value):
+            raise serializers.ValidationError("Password must contain at least one digit.")
+        
+        return value
+
+    def validate(self, attrs):
+        if attrs['new_password1'] != attrs['new_password2']:
+            raise serializers.ValidationError("The two password fields didn't match.")
+        return attrs
+
+
+
 
 class PickupDateSerializer(serializers.ModelSerializer):
   class Meta:
@@ -76,7 +202,7 @@ class WasteRequestSerializer(serializers.ModelSerializer):
         model = WasteRequest
         fields = [
             # Model fields
-            'id', 'user', 'name', 'email', 'phone', 'address', 'city',
+            'id', 'user', 'name', 'email', 'phone', 'address', 'city','zipcode',
             'date', 'waste_type', 'category', 'weight', 'frequency', 'urgency',
             'duration', 'status', 'order_id', 'transaction_id', 'payment_method', 'payment_status',
             # Custom / computed fields
@@ -235,7 +361,8 @@ class WasteRequestUserUpdateSerializer(serializers.ModelSerializer):
             "pickup_date",
             "waste_type",
             "weight",
-            "economy_weight_option",
+            'economyWeightOption',
+            # "economy_weight_option",
             "category",
             "address",
             "email",
@@ -251,12 +378,13 @@ class WasteRequestUserUpdateSerializer(serializers.ModelSerializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source="user.email", required=False)
-    full_name = serializers.CharField(source="user.first_name", required=False)
+    full_name = serializers.CharField(required=False) 
+    # full_name = serializers.CharField(source="user.first_name", required=False)
   
 
     class Meta:
         model = UserProfile
-        fields = ["full_name", "email", "phone_number", "address", "city", "zip_code"]
+        fields = ["full_name", "email", "phone_number", "address", "city", "zipcode"]
 
     # def get_full_name(self, obj):
     #      return f"{obj.user.first_name} {obj.user.last_name}".strip()

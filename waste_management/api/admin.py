@@ -2,8 +2,57 @@ from django.utils.html import format_html
 from django.contrib import admin
 from django import forms
 from datetime import datetime
+from django.contrib.auth.models import User
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .serializers import WasteRequestSerializer
-from .models import WasteRequest, Notification, Payment, Refund, CollectionDetail, RequestUpdate, WasteCategory, StaffProfile, City, PickupDate, WasteRequestStatus, WasteRequestPickup, WasteRequestUserUpdate, WasteRequestCancelled,Invoice,Feedback,ContactMessage
+from .models import WasteRequest, Notification, Payment, Refund, CollectionDetail, RequestUpdate, WasteCategory, StaffProfile, City, PickupDate, WasteRequestStatus, WasteRequestPickup, WasteRequestUserUpdate, WasteRequestCancelled,Invoice,Feedback,ContactMessage,UserProfile
+
+
+
+class UserProfileInline(admin.StackedInline):
+    model = UserProfile
+    can_delete = False
+    fields = ("full_name", "phone_number")  # only show these
+    verbose_name_plural = "Profile"
+
+
+# Custom User Admin
+class CustomUserAdmin(BaseUserAdmin):
+    inlines = (UserProfileInline,)
+
+    # Only show email (username is internally same as email)
+    fieldsets = (
+        (None, {"fields": ("email", "password")}),
+        ("Permissions", {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
+        ("Important dates", {"fields": ("last_login", "date_joined")}),
+    )
+
+    add_fieldsets = (
+        (None, {
+            "classes": ("wide",),
+            "fields": ("email", "password1", "password2"),
+        }),
+    )
+
+    list_display = ("email", "get_full_name", "get_phone_number", "is_staff")
+    search_fields = ("email", "profile__full_name", "profile__phone_number")
+    ordering = ("email",)
+
+    # Custom methods to pull from UserProfile
+    def get_full_name(self, obj):
+        return obj.profile.full_name
+    get_full_name.short_description = "Full Name"
+
+    def get_phone_number(self, obj):
+        return obj.profile.phone_number
+    get_phone_number.short_description = "Phone Number"
+
+
+# Unregister default User
+admin.site.unregister(User)
+# Register our custom one
+admin.site.register(User, CustomUserAdmin)
+
 
 
 class InvoiceInline(admin.TabularInline):  # or StackedInline if you want full form style
