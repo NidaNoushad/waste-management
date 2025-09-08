@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
+from staff.models import Staff,Area
 
 # Create your models here.
 class UserProfile(models.Model):
@@ -15,6 +16,10 @@ class UserProfile(models.Model):
     address = models.TextField(blank=True, null=True)
     city = models.CharField(max_length=100, blank=True, null=True)
     zipcode = models.CharField(max_length=10, blank=True, null=True)
+    # ✅ NEW FIELDS
+    email_notifications = models.BooleanField(default=True)
+    sms_notifications = models.BooleanField(default=True)
+
 
     def __str__(self):
         return self.user.username
@@ -45,6 +50,8 @@ class WasteRequest(models.Model):
         ("Refunded","Refunded")
     ]
 
+    
+
     user = models.ForeignKey(User, on_delete=models.CASCADE)  # User ID
     # name = models.CharField(max_length=100)
     name = models.CharField(max_length=100, null=True, blank=True)
@@ -52,6 +59,7 @@ class WasteRequest(models.Model):
     phone = models.CharField(max_length=10, null=True, blank=True)
     address = models.TextField(null=True, blank=True)
     zipcode = models.CharField(max_length=6, blank=True, null=True) 
+    
     city = models.CharField(max_length=50, blank=True, null=True)
     date = models.DateField(blank=True, null=True)
     waste_type = models.CharField(max_length=20, null=True, blank=True)
@@ -82,13 +90,41 @@ class WasteRequest(models.Model):
      
      #order Id
     order_id = models.CharField(max_length=20, unique=True, blank=True, null=True)
+      # auto-detected area (set when request is saved)
+    area = models.ForeignKey("staff.Area", on_delete=models.SET_NULL, null=True, blank=True)
+    assigned_staff = models.ForeignKey(
+        Staff, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="requests"
+    )
 
     def save(self, *args, **kwargs):
         if not self.order_id:
             today_str = datetime.datetime.now().strftime('%Y%m%d')
             random_num = random.randint(1000, 9999)
             self.order_id = f"ORD-{today_str}-{random_num}"
+
+            
+            """Automatically detect area from zipcode before saving"""
+        if self.zipcode:
+          
+            for area in Area.objects.all():
+                if self.zipcode in area.get_zipcodes():
+                    self.area = area
+                    break
+        is_new = self.pk is None
         super().save(*args, **kwargs)
+
+        # 3️⃣If new request, create WasteRequestStatus for each pickup date
+        if is_new:
+            for d in (self.pickup_dates or []):
+                WasteRequestStatus.objects.get_or_create(
+                waste_request=self,
+                pickup_date=d,
+                defaults={"status": "Pending"}
+            )
+
+        super().save(*args, **kwargs)
+   
 
     def __str__(self):
         return f"Order {self.id} - {self.name}"
@@ -113,14 +149,28 @@ class WasteRequestStatus(models.Model):
     waste_category = models.CharField(max_length=50, blank=True)
     waste_type = models.CharField(max_length=50, blank=True)
 
+    # NEW: Store area and assigned staff per pickup
+    area = models.ForeignKey("staff.Area", on_delete=models.SET_NULL, null=True, blank=True)
+    assigned_staff = models.ForeignKey("staff.Staff", on_delete=models.SET_NULL, null=True, blank=True)
+
     class Meta:
         ordering = ["-updated_at"]
         unique_together = ("waste_request", "pickup_date")  # Avoid duplicates
+
+
     def save(self, *args, **kwargs):
     # Auto-fill category and type from WasteRequest
      if self.waste_request:
         self.waste_category = self.waste_request.category
         self.waste_type = self.waste_request.waste_type
+
+
+
+         # Auto-fill area and assigned_staff from WasteRequest if not set
+     if self.waste_request and not self.area:
+        self.area = self.waste_request.area
+     if self.waste_request and not self.assigned_staff:
+        self.assigned_staff = self.waste_request.assigned_staff
 
     # Store old status before saving
      old_status = None
@@ -195,6 +245,13 @@ class WasteRequestPickup(models.Model):
         default="Pending"
     )
 
+    refund_status = [
+    ("Refund_initiated", "Refund Initiated"),
+    ("Refunded", "Refunded"),
+    ("Failed", "Failed"),
+]
+
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -213,6 +270,10 @@ class WasteRequestUserUpdate(models.Model):
     base_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     gstAmount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     final_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    refund_id = models.CharField(max_length=100, blank=True, null=True)
+    
+    refund_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    refund_processed_at = models.DateTimeField(blank=True, null=True)
     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_manual = models.BooleanField(default=False) 
@@ -227,11 +288,20 @@ class WasteRequestCancelled(models.Model):
         ("Admin", "Admin"),
     ]
 
+    REFUND_STATUS_CHOICES = [
+      ("Refund_initiated", "Refund Initiated"),
+      ("Refunded", "Refunded"),
+      ("Failed", "Failed"),
+  ]
+
+
     waste_request = models.ForeignKey(WasteRequest, on_delete=models.CASCADE, related_name="cancelled_pickups")
     pickup_date = models.DateField()
     refund_id = models.CharField(max_length=100, null=True, blank=True)
     refund_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    refund_status = models.CharField(max_length=20, null=True, blank=True)
+    refund_processed_at = models.DateTimeField(blank=True, null=True)
+    refund_status = models.CharField(max_length=30, choices=REFUND_STATUS_CHOICES, blank=True, null=True)
+    refund_error = models.TextField(null=True, blank=True)
     waste_type = models.CharField(max_length=50, blank=True)
     category = models.CharField(max_length=50, blank=True)
     final_amount = models.FloatField(default=0)  # Add this field
@@ -410,84 +480,3 @@ class Refund(models.Model):
         return f"Refund #{self.id} - {self.refund_status}"
 
 
-class CollectionDetail(models.Model):
-    COLLECTION_FREQUENCY_CHOICES = [
-        ('Daily', 'Daily'),
-        ('Weekly', 'Weekly'),
-        ('Monthly', 'Monthly'),
-    ]
-
-    COLLECTION_STATUS_CHOICES = [
-        ('Pending', 'Pending'),
-        ('Collected', 'Collected'),
-        ('Skipped', 'Skipped'),
-        ('Delayed', 'Delayed'),
-    ]
-
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='collections')
-    staff = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_collections')
-    waste_type = models.CharField(max_length=50)
-    collection_frequency = models.CharField(max_length=10, choices=COLLECTION_FREQUENCY_CHOICES)
-    last_collection = models.DateField(null=True, blank=True)
-    next_collection = models.DateField()
-    collection_status = models.CharField(max_length=10, choices=COLLECTION_STATUS_CHOICES, default='Pending')
-
-    def __str__(self):
-        return f"Tracking #{self.id} - {self.collection_status}"
-
-class RequestUpdate(models.Model):
-    UPDATE_TYPE_CHOICES = [
-        ('ChangeAddress', 'Change Address'),
-        ('ChangeCategory', 'Change Category'),
-        ('ChangeAddress,ChangeCategory', 'Change Address and Category'),
-    ]
-
-    request = models.ForeignKey('WasteRequest', on_delete=models.CASCADE, related_name='updates')
-    update_type = models.CharField(max_length=50, choices=UPDATE_TYPE_CHOICES)
-    update_date = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Update #{self.id} - {self.update_type}"
-
-class WasteCategory(models.Model):
-    CATEGORY_CHOICES = [
-        ('Plastic Waste', 'Plastic Waste'),
-        ('Kitchen Waste', 'Kitchen Waste'),
-        ('E-waste', 'E-waste'),
-        ('Medical Waste', 'Medical Waste'),
-        ('Paper Waste', 'Paper Waste'),
-        ('Glass Waste', 'Glass Waste'),
-        ('Metal Waste', 'Metal Waste'),
-        ('Garden Waste', 'Garden Waste'),
-    ]
-
-    TYPE_CHOICES = [
-        ('Economy', 'Economy'),
-        ('Urgent', 'Urgent'),
-        ('Bulk', 'Bulk'),
-    ]
-
-    category_name = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
-    description = models.TextField()
-    price = models.DecimalField(max_digits=8, decimal_places=2)
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
-
-    def __str__(self):
-        return f"{self.category_name} - {self.type}"
-  
-
-
-class StaffProfile(models.Model):
-    STATUS_CHOICES = [
-        ('Working', 'Working'),
-        ('On Vacation', 'On Vacation'),
-        ('Inactive', 'Inactive'),
-    ]
-
-    user = models.OneToOneField(User, on_delete=models.CASCADE)  # This links to Django's default user
-    phone = models.CharField(max_length=15)
-    address = models.TextField()
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Working')
-
-    def __str__(self):
-        return self.user.get_full_name() or self.user.username

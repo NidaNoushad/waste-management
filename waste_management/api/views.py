@@ -1,6 +1,7 @@
 
 from rest_framework import viewsets
 import razorpay
+from datetime import date
 from .pagination import CustomPagination
 from django.core.mail import send_mail
 from django.conf import settings
@@ -28,20 +29,27 @@ from rest_framework.views import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.db.models import Count
 # from rest_framework.pagination import PageNumberPagination
 
 
 
-from django.utils import timezone
+# from django.utils import timezone
 from datetime import date, timedelta
+# from datetime import datetime, date
+from datetime import datetime, date
+from django.utils import timezone
 import datetime
 from dateutil.relativedelta import relativedelta
 from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
-from .models import WasteRequest, Notification, Payment, Refund, CollectionDetail, RequestUpdate, WasteCategory, StaffProfile, City, PickupDate, WasteRequestStatus, Invoice,WasteRequestPickup, WasteRequestUserUpdate,WasteRequestCancelled,Feedback,UserProfile
-from .serializers import WasteRequestSerializer, NotificationSerializer, PaymentSerializer, RefundSerializer, CollectionDetailSerializer, RequestUpdateSerializer, WasteCategorySerializer, StaffProfileSerializer,   CitySerializer, PickupDateSerializer, RegisterSerializer, WasteRequestStatusSerializer, InvoiceSerializer,WasteRequestUserUpdateSerializer,FeedbackSerializer,ContactMessageSerializer,UserProfileSerializer,ChangePasswordSerializer,PasswordResetRequestSerializer, PasswordResetConfirmSerializer,MyTokenObtainPairSerializer
+from .models import WasteRequest, Notification, Payment, Refund,  City, PickupDate, WasteRequestStatus, Invoice,WasteRequestPickup, WasteRequestUserUpdate,WasteRequestCancelled,Feedback,UserProfile
+from .serializers import WasteRequestSerializer, NotificationSerializer, PaymentSerializer, RefundSerializer,   CitySerializer, PickupDateSerializer, RegisterSerializer, WasteRequestStatusSerializer, InvoiceSerializer,WasteRequestUserUpdateSerializer,FeedbackSerializer,ContactMessageSerializer,UserProfileSerializer,ChangePasswordSerializer,PasswordResetRequestSerializer, PasswordResetConfirmSerializer,MyTokenObtainPairSerializer,StaffTokenObtainPairSerializer
+# ,CustomerTokenObtainPairSerializer,StaffTokenObtainPairSerializer
+# ,MyTokenObtainPairSerializer
 
-
+class StaffTokenObtainPairView(TokenObtainPairView):
+    serializer_class = StaffTokenObtainPairSerializer
 
 # Create your views here.
 razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
@@ -172,84 +180,142 @@ class VerifyPaymentView(APIView):
 #         except Exception as e:
 #             return Response({"error": str(e)}, status=400)
 
-def initiate_razorpay_refund(transaction_id, amount):
-    """
-    Initiate refund through Razorpay
+# def initiate_razorpay_refund(transaction_id, amount):
+#     """
+#     Initiate refund through Razorpay
     
+#     Args:
+#         transaction_id (str): Razorpay payment ID
+#         amount (float): Amount to refund
+    
+#     Returns:
+#         dict: Refund details or error info
+#     """
+#     try:
+#         # Convert amount to paise (Razorpay uses paise)
+#         refund_amount = int(float(amount) * 100)
+        
+#         # Create refund
+#         refund = razorpay_client.payment.refund(transaction_id, {
+#             "amount": refund_amount,
+#             "speed": "optimum",  # or "normal"
+#             "notes": {
+#                 "reason": "User cancellation",
+#                 "initiated_by": "system"
+#             }
+#         })
+        
+#         logger.info(f"Refund successful: {refund['id']} for payment: {transaction_id}")
+        
+#         return {
+#             "success": True,
+#             "refund_id": refund['id'],
+#             "status": refund['status'],  # "processed", "pending", etc.
+#             "amount": float(refund['amount']) / 100,  # Convert back from paise
+#             "created_at": refund['created_at'],
+#             "razorpay_response": refund
+#         }
+        
+#     except razorpay.errors.BadRequestError as e:
+#         logger.error(f"Razorpay bad request: {str(e)}")
+#         return {
+#             "success": False,
+#             "error": f"Invalid request: {str(e)}",
+#             "status": "failed"
+#         }
+        
+#     except razorpay.errors.ServerError as e:
+#         logger.error(f"Razorpay server error: {str(e)}")
+#         return {
+#             "success": False,
+#             "error": "Payment service unavailable",
+#             "status": "failed"
+#         }
+        
+#     except Exception as e:
+#         logger.error(f"Refund failed: {str(e)}")
+#         return {
+#             "success": False,
+#             "error": str(e),
+#             "status": "failed"
+#         }
+
+
+
+def initiate_razorpay_refund(transaction_id, old_amount, new_amount=None, reason="cancel"):
+    """
+    Handle refund through Razorpay for both update and cancel cases.
+
     Args:
         transaction_id (str): Razorpay payment ID
-        amount (float): Amount to refund
-    
+        old_amount (float): Original amount paid
+        new_amount (float, optional): New amount after update (only for update case)
+        reason (str): "update" or "cancel"
+
     Returns:
-        dict: Refund details or error info
+        dict: Refund details or status
     """
     try:
-        # Convert amount to paise (Razorpay uses paise)
-        refund_amount = int(float(amount) * 100)
-        
-        # Create refund
+        refund_amount = 0.0
+
+        # Case 1: Cancel → refund full amount
+        if reason == "cancel":
+            refund_amount = old_amount  
+
+        # Case 2: Update → refund only difference if new < old
+        elif reason == "update" and new_amount is not None:
+            if new_amount < old_amount:
+                refund_amount = old_amount - new_amount
+            else:
+                return {
+                    "success": False,
+                    "message": "No refund, extra payment required",
+                    "extra_payment": new_amount - old_amount
+                }
+
+        # If no refund required
+        if refund_amount <= 0:
+            return {"success": True, "message": "No refund required"}
+
+        # Convert to paise
+        refund_paise = int(refund_amount * 100)
+
+        # Create refund in Razorpay
         refund = razorpay_client.payment.refund(transaction_id, {
-            "amount": refund_amount,
-            "speed": "optimum",  # or "normal"
+            "amount": refund_paise,
+            "speed": "optimum",
             "notes": {
-                "reason": "User cancellation",
+                "reason": reason.capitalize(),
                 "initiated_by": "system"
             }
         })
-        
+
         logger.info(f"Refund successful: {refund['id']} for payment: {transaction_id}")
-        
+
         return {
             "success": True,
             "refund_id": refund['id'],
-            "status": refund['status'],  # "processed", "pending", etc.
-            "amount": float(refund['amount']) / 100,  # Convert back from paise
+            "status": refund['status'],
+            "amount": refund_amount,
             "created_at": refund['created_at'],
             "razorpay_response": refund
         }
-        
+
     except razorpay.errors.BadRequestError as e:
         logger.error(f"Razorpay bad request: {str(e)}")
-        return {
-            "success": False,
-            "error": f"Invalid request: {str(e)}",
-            "status": "failed"
-        }
-        
+        return {"success": False, "error": f"Invalid request: {str(e)}", "status": "failed"}
+
     except razorpay.errors.ServerError as e:
         logger.error(f"Razorpay server error: {str(e)}")
-        return {
-            "success": False,
-            "error": "Payment service unavailable",
-            "status": "failed"
-        }
-        
+        return {"success": False, "error": "Payment service unavailable", "status": "failed"}
+
     except Exception as e:
         logger.error(f"Refund failed: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e),
-            "status": "failed"
-        }
-
-
-# def initiate_razorpay_refund(transaction_id, amount):
-#     """
-#     Create a refund in Razorpay (amount in INR)
-#     Returns: dict with refund_id and status
-#     """
-#     try:
-#         refund = client.payment.refund(transaction_id, {
-#             "amount": int(amount * 100)  # convert to paise
-#         })
-#         return {"refund_id": refund.get("id"), "status": refund.get("status"), "error": None}
-#     except Exception as e:
-#         return {"error": str(e), "refund_id": None, "status": "failed"}
+        return {"success": False, "error": str(e), "status": "failed"}
 
 
 
-class MyTokenObtainPairView(TokenObtainPairView):
-    serializer_class = MyTokenObtainPairSerializer
+
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -265,11 +331,11 @@ class RegisterView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+
 # class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 #     @classmethod
 #     def get_token(cls, user):
 #         token = super().get_token(user)
-#         # Add custom claims if needed
 #         token['email'] = user.email
 #         return token
 
@@ -277,63 +343,114 @@ class RegisterView(APIView):
 #         email = attrs.get("email")
 #         password = attrs.get("password")
 
-#         # Authenticate using email
+#         # find user by email
 #         try:
 #             user = User.objects.get(email=email)
 #         except User.DoesNotExist:
 #             raise serializers.ValidationError("No account found with this email.")
 
+#         # check password
 #         if not user.check_password(password):
 #             raise serializers.ValidationError("Invalid password.")
 
 #         if not user.is_active:
 #             raise serializers.ValidationError("This account is inactive.")
 
+#         # call parent with username (JWT requires username internally)
 #         data = super().validate({
-#             "username": user.username,  # JWT still needs username internally
+#             "username": user.username,
 #             "password": password
 #         })
 
 #         data["email"] = user.email
 #         return data
 
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
 
-class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
-    @classmethod
-    def get_token(cls, user):
-        token = super().get_token(user)
-        token['email'] = user.email
-        return token
+# class StaffLoginView(TokenObtainPairView):
+#     serializer_class = StaffTokenObtainPairSerializer
 
-    def validate(self, attrs):
-        email = attrs.get("email")
-        password = attrs.get("password")
 
-        # find user by email
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            raise serializers.ValidationError("No account found with this email.")
+# views.py
+# class StaffLoginView(TokenObtainPairView):
+#     serializer_class = MyTokenObtainPairSerializer
+    
+#     def get_serializer(self, *args, **kwargs):
+#         kwargs['is_staff_login'] = True
+#         return super().get_serializer(*args, **kwargs)
 
-        # check password
-        if not user.check_password(password):
-            raise serializers.ValidationError("Invalid password.")
-
-        if not user.is_active:
-            raise serializers.ValidationError("This account is inactive.")
-
-        # call parent with username (JWT requires username internally)
-        data = super().validate({
-            "username": user.username,
-            "password": password
-        })
-
-        data["email"] = user.email
-        return data
+# class CustomerLoginView(TokenObtainPairView):
+#     serializer_class = MyTokenObtainPairSerializer
+    
+#     def get_serializer(self, *args, **kwargs):
+#         kwargs['is_staff_login'] = False
+#         return super().get_serializer(*args, **kwargs)
 
 
 # class MyTokenObtainPairView(TokenObtainPairView):
 #     serializer_class = MyTokenObtainPairSerializer
+# class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+#     username = serializers.CharField(required=False, allow_blank=True)
+#     email = serializers.EmailField(required=False, allow_blank=True)
+#     password = serializers.CharField(write_only=True)
+
+#     @classmethod
+#     def get_token(cls, user):
+#         token = super().get_token(user)
+#         token['email'] = user.email
+#         token['username'] = user.username
+#         token['is_staff'] = user.is_staff
+#         return token
+
+#     def validate(self, attrs):
+#         username = attrs.get("username")
+#         email = attrs.get("email")
+#         password = attrs.get("password")
+
+#         if not password:
+#             raise serializers.ValidationError("Password is required.")
+
+#         user = None
+
+#         # 🔹 Staff login with username
+#         if username:
+#             try:
+#                 user = User.objects.get(username=username)
+#                 if not user.is_staff:
+#                     raise serializers.ValidationError("Only staff can log in with username.")
+#             except User.DoesNotExist:
+#                 raise serializers.ValidationError("Invalid staff username.")
+
+#         # 🔹 Customer login with email
+#         elif email:
+#             try:
+#                 user = User.objects.get(email=email)
+#                 if user.is_staff:
+#                     raise serializers.ValidationError("Staff must log in with username, not email.")
+#             except User.DoesNotExist:
+#                 raise serializers.ValidationError("Invalid customer email.")
+
+#         else:
+#             raise serializers.ValidationError("Provide email (for customers) or username (for staff).")
+
+#         # 🔹 Password check
+#         if not user.check_password(password):
+#             raise serializers.ValidationError("Invalid password.")
+
+#         if not user.is_active:
+#             raise serializers.ValidationError("This account is inactive.")
+
+#         # ✅ Continue JWT generation
+#         data = super().validate({
+#             "username": user.username,  # JWT still needs username internally
+#             "password": password
+#         })
+
+#         data["email"] = user.email
+#         data["username"] = user.username
+#         data["is_staff"] = user.is_staff
+#         return data
 
 
 
@@ -616,15 +733,17 @@ Thank you for choosing TrashGo!
 
 Best regards,
 TrashGo Team"""
-        
-            send_mail(                 
+            if hasattr(order.user, "profile") and getattr(order.user.profile, "email_notifications", True):
+             send_mail(                 
             subject=email_subject,                 
             message=email_message,                 
             from_email=settings.DEFAULT_FROM_EMAIL,                 
             recipient_list=[order.email],                 
             fail_silently=False,                 
         )                 
-            print("Email sent successfully")             
+             print("Email sent successfully")
+            else:
+             print("User disabled email notifications, skipping email.")             
         except Exception as e:                  
             print(f"Email sending failed: {e}")                      
 
@@ -639,54 +758,11 @@ TrashGo Team"""
 
         
 
-    # @action(detail=True, methods=['post'])
-    # def confirm_payment(self, request, pk=None):
-    #     order = self.get_object()
-    #     payment_method = request.data.get('payment_method')
-    #     razorpay_payment_id = request.data.get('razorpay_payment_id')
+   
 
-    #     if payment_method not in ["Cash on Pickup", "UPI", "Card"]:
-    #         return Response({"error": "Invalid payment method"}, status=status.HTTP_400_BAD_REQUEST)
-
-    #     order.payment_method = payment_method
-    #     # For cash on pickup, payment_status stays Pending
-    #     # For online, also Pending here until payment gateway confirms success
-        
-    # # Payment status logic
-    #     if payment_method == "Cash on Pickup":
-    #       order.payment_status = "Pending"
-    #     elif payment_method in ["UPI", "Card"]:
-    #         if razorpay_payment_id:
-    #             order.payment_status = "Paid"
-    #             order.transaction_id = razorpay_payment_id
-    #         else:
-    #             order.payment_status = "Pending"
-    #     # order.payment_status = "Pending"
-       
-    #     order.save()  # save the order first
-       
-    #     if payment_method == "Cash on Pickup":
-    #         try:
-    #             print(f"Sending email to: {order.email}")
-    #             send_mail(
-    #             subject="Order Confirmation - TrashGo",
-    #             message=f"Hello {order.name},\n\nYour order #{order.order_id} has been confirmed. Our team will pick up your waste as scheduled.\n\nThank you for choosing TrashGo!",
-    #             from_email=settings.DEFAULT_FROM_EMAIL,
-    #             recipient_list=[order.email],
-    #             fail_silently=False,
-    #             )
-    #             print("Email sent successfully")
-    #         except Exception as e:
-    #              print(f"Email sending failed: {e}")
-           
-
-    #     return Response({
-    #         "message": "Payment method saved, order updated.",
-    #         "order_id": order.id,
-    #         "payment_method": order.payment_method,
-    #         "payment_status": order.payment_status,
-    #         # "pickup_dates": order.pickup_dates,
-    #     })
+   
+   
+   
 
 
 class WasteRequestStatusViewSet(viewsets.ModelViewSet):
@@ -720,6 +796,9 @@ class WasteRequestPickupViewSet(viewsets.ViewSet):
             breakdown_dict = {item["pickup_date"]: item["updated_amount"] for item in per_date_breakdown.get("breakdown", [])}
             for d in (req.pickup_dates or []):
                 # Check if user has updated this pickup
+                # Calculate per-pickup amount
+                total_pickups = len(req.pickup_dates or [])
+                per_pickup_amount = req.final_amount / max(total_pickups, 1)
                 
                 
                 user_update = WasteRequestUserUpdate.objects.filter(
@@ -739,6 +818,7 @@ class WasteRequestPickupViewSet(viewsets.ViewSet):
                 feedbacks = list(req.feedbacks.filter(pickup_date=d).values("comment", "rating", "pickup_date"))
                 flat_rows.append({
                     "id": req.id,
+                    "waste_request_id": req.id, 
                     # "pickup_id": pickup.id,
                     "order_id": req.order_id,
                     "pickup_date": d,
@@ -753,6 +833,7 @@ class WasteRequestPickupViewSet(viewsets.ViewSet):
                     "email": user_update.email if (user_update and user_update.email) else req.email,
                     "weight": user_update.weight if (user_update and user_update.weight) else req.weight,  # ✅ added weight
                     "amount": breakdown_dict.get(str(d), 0),
+                    "per_date_amount": per_pickup_amount,
                     "refund_id": cancelled.refund_id if cancelled else None,
                     "refund_status": cancelled.refund_status if cancelled else None,
                     "refund_amount": cancelled.refund_amount if cancelled else None,
@@ -834,7 +915,7 @@ class WasteRequestUserUpdateViewSet(viewsets.ViewSet):
         
         serializer = WasteRequestUserUpdateSerializer(user_update)
         return Response(serializer.data, status=status.HTTP_200_OK)
-        # return Response(response_data, status=status.HTTP_200_OK)
+
 
 
 # class CancelWasteRequestStatusView(generics.UpdateAPIView):
@@ -849,96 +930,9 @@ class WasteRequestUserUpdateViewSet(viewsets.ViewSet):
 #     def put(self, request, *args, **kwargs):
 #         waste_request_id = self.kwargs.get("waste_request_id")
 #         pickup_date = request.data.get("pickup_date")
-
-#         if not pickup_date:
-#             return Response({"detail": "pickup_date is required"}, status=400)
-
-#         try:
-#             waste_request = WasteRequest.objects.get(id=waste_request_id)
-#         except WasteRequest.DoesNotExist:
-#             return Response({"detail": "WasteRequest not found"}, status=404)
-
-#         # ✅ Update or create status object
-#         obj, created = WasteRequestStatus.objects.get_or_create(
-#             waste_request=waste_request,
-#             pickup_date=pickup_date,
-#             defaults={"status": "Cancelled", "updated_by": request.user}
-#         )
-#         if not created:
-#             obj.status = "Cancelled"
-#             obj.updated_by = request.user
-#             obj.save()
-
-#         # # ✅ Recalculate per-date breakdown to find cancelled amount
-#         # per_date_breakdown = WasteRequestSerializer(waste_request).data.get("per_date_breakdown", {})
-#         # breakdown_dict = {item["pickup_date"]: item["updated_amount"] for item in per_date_breakdown.get("breakdown", [])}
-#         # cancelled_amount = breakdown_dict.get(str(pickup_date), 0)
-
-
-#         # Get per-date breakdown from serializer
-#         # Get per-date amount
-#         breakdown = WasteRequestSerializer(waste_request).data.get("per_date_breakdown", {}).get("breakdown", [])
-#         cancelled_amount = float(next((item["updated_amount"] for item in breakdown if item["pickup_date"] == str(pickup_date)), 0))
-       
-
-#         # Save cancellation record
-#         cancelled_record, _ = WasteRequestCancelled.objects.update_or_create(
-#             waste_request=waste_request,
-#             pickup_date=pickup_date,
-#             defaults={
-#                 "waste_type": obj.waste_request.waste_type,
-#                 "category": obj.waste_request.category,
-#                 "final_amount": cancelled_amount, #per pickup amount
-#                 "cancelled_by": "User",
-#             }
-#         )
-#         refund_info = None
-#         # Trigger Razorpay refund if payment method is NOT COD
-
-
-#         if waste_request.payment_method != "Cash on Pickup" and waste_request.payment_status == "Paid":
-#             refund_data = initiate_razorpay_refund(waste_request.transaction_id, float(cancelled_amount))
-#             if refund_data.get("error"):
-#                 cancelled_record.refund_status = "failed"
-#             else:
-#                 cancelled_record.refund_id = refund_data.get("refund_id")
-#                 cancelled_record.refund_amount = cancelled_amount
-#                 cancelled_record.refund_status = refund_data.get("status")
-#             cancelled_record.save()
-#             refund_info = {
-#                 "refund_id": cancelled_record.refund_id,
-#                 "refund_status": cancelled_record.refund_status,
-#                 "refund_amount": cancelled_record.refund_amount
-#             }
-
-#             # Update overall payment_status if all pickups cancelled
-
-#             total_pickups = len(waste_request.pickup_dates or [])
-#             cancelled_pickups = waste_request.cancelled_pickups.count()
-#             if total_pickups > 0 and cancelled_pickups >= total_pickups:
-#                 waste_request.payment_status = "Refunded"
-#                 waste_request.save()
-
-#         return Response({
-#                 "detail": "Pickup cancelled successfully",
-#                 "refund_info": refund_info
-#             }, status=200)
-
-        
-
-# # 
-# class CancelWasteRequestStatusView(generics.UpdateAPIView):
-#     """
-#     PUT /api/user-cancel-request/<waste_request_id>/
-#     Body: { "pickup_date": "YYYY-MM-DD" }
-#     """
-#     queryset = WasteRequestStatus.objects.all()
-#     serializer_class = WasteRequestStatusSerializer
-#     permission_classes = [permissions.IsAuthenticated]
-
-#     def put(self, request, *args, **kwargs):
-#         waste_request_id = self.kwargs.get("waste_request_id")
-#         pickup_date = request.data.get("pickup_date")
+#         payment_method = request.data.get("payment_method", "Cash on Pickup")
+#         transaction_id = request.data.get("transaction_id")
+#         final_amount = request.data.get("final_amount")
 
 #         if not pickup_date:
 #             return Response({"detail": "pickup_date is required"}, status=400)
@@ -956,12 +950,14 @@ class WasteRequestUserUpdateViewSet(viewsets.ViewSet):
 #         )
 
 #         if not created:
+#             if obj.status == "Cancelled":
+#                 return Response({"detail": "Already cancelled"}, status=400)
 #             obj.status = "Cancelled"
 #             obj.updated_by = request.user
 #             obj.save()
-        
-#           # Save to cancelled model
-#         WasteRequestCancelled.objects.get_or_create(
+
+#             # Create cancelled record
+#         cancelled_obj, _ = WasteRequestCancelled.objects.get_or_create(
 #             waste_request=waste_request,
 #             pickup_date=pickup_date,
 #             defaults={
@@ -969,17 +965,66 @@ class WasteRequestUserUpdateViewSet(viewsets.ViewSet):
 #                 "cancelled_by": "User"
 #             }
 #         )
+#         today = timezone.now().date()
+#         refund_data = {}
 
+#         # Process refund for online payments
+#         if payment_method != "Cash on Pickup" and (transaction_id or waste_request.transaction_id):
+#             refund_transaction_id = transaction_id or waste_request.transaction_id              
+
+#             refund_amount = cancelled_obj.final_amount
+#             refund_result = initiate_razorpay_refund(
+#                 transaction_id=refund_transaction_id,
+#                 amount=refund_amount
+#             )
+            
+#             if refund_result.get("success"):
+#                 cancelled_obj.refund_id = refund_result.get("refund_id")
+#                 cancelled_obj.refund_status = refund_result.get("status")
+#                 cancelled_obj.refund_amount = refund_result.get("amount")
+#                 cancelled_obj.save()
+                
+#                 refund_data = {
+#                     "refund_id": cancelled_obj.refund_id,
+#                     "refund_status": cancelled_obj.refund_status,
+#                     "refund_amount": cancelled_obj.refund_amount
+#                 }
+#             else:
+#                 cancelled_obj.refund_status = "failed"
+#                 cancelled_obj.refund_error = refund_result.get("error")
+#                 cancelled_obj.save()
+                
+#                 refund_data = {
+#                     "refund_status": "failed",
+#                     "refund_error": refund_result.get("error")
+#                 }
+
+#         # Prepare response
+#         response_data = {
+#             "message": "Pickup cancelled successfully",
+#             "pickup_date": pickup_date,
+#             "status": "Cancelled",
+#             "refund_info": refund_data
+#         }
+
+#         # Add refund details to top level for easier access
+#         if refund_data.get("refund_id"):
+#             response_data.update({
+#                 "refund_id": refund_data["refund_id"],
+#                 "refund_status": refund_data["refund_status"], 
+#                 "refund_amount": refund_data["refund_amount"]
+#             })
 
 #         serializer = self.get_serializer(obj)
-#         return Response(serializer.data, status=200)
-
+#         return Response(response_data, status=200)
+      
 
 
 class CancelWasteRequestStatusView(generics.UpdateAPIView):
     """
+    Enhanced cancellation view with proper per-pickup refund handling
     PUT /api/user-cancel-request/<waste_request_id>/
-    Body: { "pickup_date": "YYYY-MM-DD" }
+    Body: { "pickup_date": "YYYY-MM-DD", "payment_method": "UPI", "transaction_id": "pay_xyz" }
     """
     queryset = WasteRequestStatus.objects.all()
     serializer_class = WasteRequestStatusSerializer
@@ -988,6 +1033,9 @@ class CancelWasteRequestStatusView(generics.UpdateAPIView):
     def put(self, request, *args, **kwargs):
         waste_request_id = self.kwargs.get("waste_request_id")
         pickup_date = request.data.get("pickup_date")
+        payment_method = request.data.get("payment_method")
+        transaction_id = request.data.get("transaction_id")
+        per_pickup_amount = request.data.get("per_pickup_amount")
 
         if not pickup_date:
             return Response({"detail": "pickup_date is required"}, status=400)
@@ -997,38 +1045,121 @@ class CancelWasteRequestStatusView(generics.UpdateAPIView):
         except WasteRequest.DoesNotExist:
             return Response({"detail": "WasteRequest not found"}, status=404)
 
-        # Get or create status object
+        # Use provided payment method or fallback to waste_request
+        payment_method = payment_method or waste_request.payment_method
+        transaction_id = transaction_id or waste_request.transaction_id
+
+        # Parse pickup date
+        if isinstance(pickup_date, str):
+            pickup_date_obj = datetime.datetime.strptime(pickup_date, "%Y-%m-%d").date()
+        else:
+            pickup_date_obj = pickup_date
+
+        # Check if pickup can be cancelled
+        existing_status = WasteRequestStatus.objects.filter(
+            waste_request=waste_request,
+            pickup_date=pickup_date_obj
+        ).first()
+        
+        current_status = existing_status.status if existing_status else "Pending"
+        if current_status not in ["Assigned", "Pending"]:
+            return Response(
+                {"detail": f"Cannot cancel pickup with status: {current_status}"}, 
+                status=400
+            )
+
+        # Calculate per-pickup refund amount
+        if per_pickup_amount is None or per_pickup_amount <= 0:
+            # Calculate based on total amount divided by pickup dates
+            total_pickups = len(waste_request.pickup_dates or [])
+            per_pickup_amount = waste_request.final_amount / max(total_pickups, 1)
+
+        # Get or create status object and set to Cancelled
         obj, created = WasteRequestStatus.objects.get_or_create(
             waste_request=waste_request,
-            pickup_date=pickup_date,
+            pickup_date=pickup_date_obj,
             defaults={"status": "Cancelled", "updated_by": request.user}
         )
 
         if not created:
+            if obj.status == "Cancelled":
+                return Response({"detail": "Already cancelled"}, status=400)
             obj.status = "Cancelled"
             obj.updated_by = request.user
             obj.save()
+
+        # Create cancelled record with proper amount
         cancelled_obj, _ = WasteRequestCancelled.objects.get_or_create(
             waste_request=waste_request,
-            pickup_date=pickup_date,
+            pickup_date=pickup_date_obj,
             defaults={
-                "final_amount": waste_request.final_amount,
-                "cancelled_by": "User"
+                "final_amount": per_pickup_amount,  # Use per-pickup amount
+                "cancelled_by": "User",
+                "refund_status": "Refund Initiated" 
             }
         )
-        
-      
-        if waste_request.payment_method != "Cash on Pickup" and waste_request.transaction_id:
-            refund_result = initiate_razorpay_refund(
-                transaction_id=waste_request.transaction_id,
-                amount=cancelled_obj.final_amount
-            )
-            cancelled_obj.refund_id = refund_result.get("refund_id")
-            cancelled_obj.refund_status = refund_result.get("status")
+
+        # Update cancelled object amount if it was created earlier with wrong amount
+        if cancelled_obj.final_amount != per_pickup_amount:
+            cancelled_obj.final_amount = per_pickup_amount
             cancelled_obj.save()
 
-        serializer = self.get_serializer(obj)
-        return Response(serializer.data, status=200)
+        refund_data = {}
+        response_data = {
+            "message": "Pickup cancelled successfully",
+            "pickup_date": pickup_date,
+            "cancelled_amount": per_pickup_amount,
+            "status": "Cancelled"
+        }
+
+        # Process refund for online payments
+        if payment_method not in ["Cash on Pickup"] and transaction_id:
+            refund_result = initiate_razorpay_refund(
+                transaction_id=transaction_id,
+                old_amount=per_pickup_amount,  # Use per-pickup amount for refund
+                reason="cancel"
+            )
+            
+            if refund_result.get("success"):
+                # Update cancelled object with refund details
+                cancelled_obj.refund_id = refund_result.get("refund_id")
+                cancelled_obj.refund_status = "Refund Initiated"
+                cancelled_obj.refund_amount = refund_result.get("amount", per_pickup_amount)
+                cancelled_obj.save()
+                
+                refund_data = {
+                    "refund_id": cancelled_obj.refund_id,
+                    "refund_status": cancelled_obj.refund_status,
+                    "refund_amount": cancelled_obj.refund_amount
+                }
+                
+                # Add to top level response for easier frontend access
+                response_data.update({
+                    "refund_id": cancelled_obj.refund_id,
+                    "refund_status": cancelled_obj.refund_status,
+                    "refund_amount": cancelled_obj.refund_amount
+                })
+                
+                logger.info(f"Refund initiated for cancellation: {cancelled_obj.refund_id}")
+                
+            else:
+                # Handle refund failure
+                cancelled_obj.refund_status = "failed"
+                cancelled_obj.refund_error = refund_result.get("error", "Unknown error")
+                cancelled_obj.save()
+                
+                refund_data = {
+                    "refund_status": "failed",
+                    "refund_error": refund_result.get("error")
+                }
+                
+                response_data["refund_error"] = refund_result.get("error")
+                logger.error(f"Refund failed for cancellation: {refund_result.get('error')}")
+
+        response_data["refund_info"] = refund_data
+        
+        return Response(response_data, status=200)
+  
 
 
 
@@ -1059,6 +1190,201 @@ class FeedbackAPIView(APIView):
             # return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+
+
+
+class UserDashboardAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        qs = WasteRequest.objects.filter(user=user)
+        current_year = timezone.now().year
+
+        # 1. Quick Stats
+        total_requests = sum(
+            (len(req.pickup_dates or []) - req.cancelled_pickups.count())
+            for req in qs
+        )
+        
+        # Count Pending/Assigned statuses in table
+        db_active = WasteRequestStatus.objects.filter(
+            waste_request__user=user,
+            status__in=["Assigned", "Pending","on the way"]
+        ).count()
+
+        # For missing status calculation - you may need to adjust this logic
+        # This is a placeholder - implement based on your specific requirements
+        missing_status_count = 0  # Implement your logic here
+
+        active_requests = db_active + missing_status_count
+
+        completed_pickups = WasteRequestStatus.objects.filter(
+            waste_request__user=user,
+            status="Complete"
+        ).count()
+
+        # Calculate pending payments
+        pending_count = 0
+        pending_payments_list = []
+
+        for req in qs:
+            if req.payment_method == "Cash on Pickup":
+                for d in (req.pickup_dates or []):
+                    paid = WasteRequestStatus.objects.filter(
+                        waste_request=req, pickup_date=d, status="Paid"
+                    ).exists()
+                    if not paid:
+                        pickup_date_obj = date.fromisoformat(d) if isinstance(d, str) else d
+                        pending_count += 1
+                        pending_payments_list.append({
+                            "id": req.id,
+                            "description": f"{req.waste_type} - {req.address[:20]}",
+                            # "amount": float(req.final_amount / max(len(req.pickup_dates or []), 1)),
+                            "amount": round(float(req.final_amount / max(len(req.pickup_dates or []), 1)), 2),
+                            "date": pickup_date_obj.strftime("%Y-%m-%d"),
+                        })
+            else:
+                if req.payment_status == "Pending":
+                    pending_count += 1
+                    pending_payments_list.append({
+                        "id": req.id,
+                        "description": f"{req.waste_type} - {req.address[:20]}",
+                        
+                        "amount": round(float(req.final_amount) if req.final_amount else 0, 2),
+                        # "amount": float(req.final_amount) if req.final_amount else 0,
+                        "date": req.created_at.strftime("%Y-%m-%d") if req.created_at else None,
+                    })
+
+        # Set pending_payments to the calculated count
+        pending_payments = pending_count
+
+        # 3. Upcoming Schedule (nearest future pickup)
+        upcoming = WasteRequestStatus.objects.filter(
+            waste_request__user=user,
+            pickup_date__gte=date.today()
+        ).order_by("pickup_date").first()
+
+        upcoming_schedule = None
+        if upcoming:
+            upcoming_schedule = {
+                "date": upcoming.pickup_date.strftime("%B %d, %Y"),
+                "time": "9:00 AM - 5:00 PM",
+                "location": upcoming.waste_request.address,
+                "type": upcoming.waste_request.waste_type,
+            }
+
+        # 4. Monthly Pickup Trend
+        monthly_data = (
+            WasteRequestStatus.objects.filter(
+                waste_request__user=user, 
+                status="Complete",
+                pickup_date__year=current_year
+            )
+            .extra(select={"month": "strftime('%%m', pickup_date)"})
+            .values("month")
+            .annotate(total=Count("id"))
+        )
+
+        monthly_dict = {m["month"]: m["total"] for m in monthly_data}
+        all_months = [f"{i:02d}" for i in range(1, 13)]
+        monthly_trend = [
+            {"month": month, "pickups": monthly_dict.get(month, 0)}
+            for month in all_months
+        ]
+
+        # 5. Notifications
+        notifications = []
+        
+        # Get recent completed pickups
+        recent_completed = WasteRequestStatus.objects.filter(
+            waste_request__user=user,
+            status="Complete"
+        ).select_related('waste_request').order_by('-updated_at')[:2]
+        
+        for status in recent_completed:
+            time_diff = timezone.now() - status.updated_at
+            if time_diff.days == 0:
+                time_str = f"{time_diff.seconds // 3600} hours ago" if time_diff.seconds >= 3600 else f"{time_diff.seconds // 60} minutes ago"
+            else:
+                time_str = f"{time_diff.days} day{'s' if time_diff.days > 1 else ''} ago"
+                
+            notifications.append({
+                "id": len(notifications) + 1,
+                "type": "success",
+                "message": f"Your {status.waste_request.waste_type} pickup has been completed successfully",
+                "time": time_str
+            })
+
+        # Get upcoming scheduled pickups
+        upcoming_pickups = WasteRequestStatus.objects.filter(
+            waste_request__user=user,
+            status__in=["Assigned", "Pending"],
+            pickup_date__gte=date.today()
+        ).select_related('waste_request').order_by('pickup_date')[:2]
+        
+        for pickup in upcoming_pickups:
+            days_until = (pickup.pickup_date - date.today()).days
+            if days_until == 0:
+                time_str = "Today"
+            elif days_until == 1:
+                time_str = "Tomorrow"
+            else:
+                time_str = f"In {days_until} days"
+                
+            notifications.append({
+                "id": len(notifications) + 1,
+                "type": "info",
+                "message": f"Pickup scheduled for {pickup.waste_request.waste_type} - {pickup.pickup_date.strftime('%B %d')}",
+                "time": time_str
+            })
+
+        # Get pending payments notifications
+        if pending_payments > 0:
+            notifications.append({
+                "id": len(notifications) + 1,
+                "type": "warning",
+                "message": f"You have {pending_payments} pending payment{'s' if pending_payments > 1 else ''}",
+                "time": "Requires attention"
+            })
+
+        # Get active requests being processed
+        active_processing = WasteRequestStatus.objects.filter(
+            waste_request__user=user,
+            status="Assigned"
+        ).select_related('waste_request').order_by('-updated_at')[:1]
+        
+        for status in active_processing:
+            notifications.append({
+                "id": len(notifications) + 1,
+                "type": "info",
+                "message": f"Driver assigned for your {status.waste_request.waste_type} pickup",
+                "time": "Active"
+            })
+
+        # Sort notifications by priority
+        priority_order = {"warning": 1, "info": 2, "success": 3}
+        notifications.sort(key=lambda x: priority_order.get(x["type"], 4))
+        notifications = notifications[:5]
+
+        # Final Response
+        return Response({
+            "quickStats": {
+                "totalRequests": total_requests,
+                "activeRequests": active_requests,
+                "completedPickups": completed_pickups,
+                "pendingPayments": pending_payments,
+            },
+            "user": {
+                "name": qs.first().name if qs.exists() else (user.get_full_name() or user.username),
+                "email": user.email
+            },
+            "pendingPayments": pending_payments_list,
+            "upcomingSchedule": upcoming_schedule,
+            "monthlyData": monthly_trend,
+            "notifications": notifications,
+        })
 
 
 # class FeedbackAPIView(APIView):
@@ -1195,23 +1521,4 @@ class RefundViewSet(viewsets.ModelViewSet):
     serializer_class=RefundSerializer
 
 
-class CollectionDetailViewSet(viewsets.ModelViewSet):
-    queryset=CollectionDetail.objects.all()
-    serializer_class=CollectionDetailSerializer
 
-class RequestUpdateViewSet(viewsets.ModelViewSet):
-    queryset=RequestUpdate.objects.all()
-    serializer_class=RequestUpdateSerializer
-
-class WasteCategoryViewSet(viewsets.ModelViewSet):
-    queryset=WasteCategory.objects.all()
-    serializer_class=WasteCategorySerializer
-
-class StaffProfileViewSet(viewsets.ModelViewSet):
-    queryset=StaffProfile.objects.all()
-    serializer_class=StaffProfileSerializer
-
-
-# class UserViewSet(viewsets.ModelViewSet):
-#     queryset=User.objects.all()
-#     serializer_class=UserSerializer

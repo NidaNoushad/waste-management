@@ -8,7 +8,8 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 
 # import viewsets
-from .views import WasteRequestViewSet, NotificationViewSet, PaymentViewSet, RefundViewSet, CollectionDetailViewSet, RequestUpdateViewSet, WasteCategoryViewSet, StaffProfileViewSet,  CityViewSet, PickupDateViewSet, PickupDateByCityView, RegisterView, WasteRequestStatusViewSet, WasteRequestPickupViewSet, InvoiceViewSet, WasteRequestUserUpdateViewSet,CalculatePriceView,CancelWasteRequestStatusView,InvoiceUploadView,FeedbackAPIView, ContactMessageView,UserProfileView,ChangePasswordView,PasswordResetRequestView, PasswordResetConfirmView,MyTokenObtainPairView, CreateRazorpayOrderView, VerifyPaymentView
+from .views import WasteRequestViewSet, NotificationViewSet, PaymentViewSet, RefundViewSet,    CityViewSet, PickupDateViewSet, PickupDateByCityView, RegisterView, WasteRequestStatusViewSet, WasteRequestPickupViewSet, InvoiceViewSet, WasteRequestUserUpdateViewSet,CalculatePriceView,CancelWasteRequestStatusView,InvoiceUploadView,FeedbackAPIView, ContactMessageView,UserProfileView,ChangePasswordView,PasswordResetRequestView, PasswordResetConfirmView, CreateRazorpayOrderView, VerifyPaymentView,UserDashboardAPIView, MyTokenObtainPairView,StaffTokenObtainPairView
+# ,CustomerLoginView,StaffLoginView,
 router = DefaultRouter()
 # router.register(r'pickup-details', WasteRequestPickupViewSet, basename='pickup-detail')
 # feedback = FeedbackViewSet.as_view({'post': 'create_or_update_feedback'})
@@ -20,11 +21,6 @@ router.register(r'user-update-request', WasteRequestUserUpdateViewSet, basename=
 router.register(r'notifications', NotificationViewSet)
 router.register(r'payments', PaymentViewSet)
 router.register(r'refunds', RefundViewSet)
-router.register(r'collection-details', CollectionDetailViewSet)
-router.register(r'request-updates', RequestUpdateViewSet)
-router.register(r'waste-categories', WasteCategoryViewSet)
-router.register(r'staff', StaffProfileViewSet)
-# router.register(r'users', UserViewSet)
 router.register(r'cities', CityViewSet)
 router.register(r'pickupdates', PickupDateViewSet)
 router.register(r'invoices', InvoiceViewSet)
@@ -32,7 +28,16 @@ router.register(r'invoices', InvoiceViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
-     path('api/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    
+    # 🔹 Customer login (old way, email only)
+    # path('customer/login/', CustomerLoginView.as_view(), name='customer_login'),
+
+    # 🔹 Staff login (username only)
+    # path('staff/login/', StaffLoginView.as_view(), name='staff_login'),
+  path('staff/login/', StaffTokenObtainPairView.as_view(), name='staff_login'),
+  
+    # path("customer/login/", CustomerLoginView.as_view(), name="customer_login"),
+    path('api/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('cities/<int:city_id>/pickupdates/', PickupDateByCityView.as_view(), name='pickup-dates-by-city' ),
     path('register/', RegisterView.as_view(), name='register'),
@@ -49,7 +54,7 @@ urlpatterns = [
    path('password-reset/', PasswordResetRequestView.as_view(), name='password_reset_request'),
     path('reset/<str:uid>/<str:token>/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
    path('change-password/', ChangePasswordView.as_view(), name='change-password'),
-
+path("user-dashboard/", UserDashboardAPIView.as_view(), name="user-dashboard"),
 
 
 

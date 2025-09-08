@@ -5,7 +5,8 @@ from datetime import datetime
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .serializers import WasteRequestSerializer
-from .models import WasteRequest, Notification, Payment, Refund, CollectionDetail, RequestUpdate, WasteCategory, StaffProfile, City, PickupDate, WasteRequestStatus, WasteRequestPickup, WasteRequestUserUpdate, WasteRequestCancelled,Invoice,Feedback,ContactMessage,UserProfile
+from staff.models import Staff
+from .models import WasteRequest, Notification, Payment, Refund,  City, PickupDate, WasteRequestStatus, WasteRequestPickup, WasteRequestUserUpdate, WasteRequestCancelled,Invoice,Feedback,ContactMessage,UserProfile
 
 
 
@@ -47,6 +48,12 @@ class CustomUserAdmin(BaseUserAdmin):
         return obj.profile.phone_number
     get_phone_number.short_description = "Phone Number"
 
+    def save_model(self, request, obj, form, change):
+        # For customers, set username = email if not provided
+        if not obj.username:
+            obj.username = obj.email
+        super().save_model(request, obj, form, change)
+
 
 # Unregister default User
 admin.site.unregister(User)
@@ -87,10 +94,19 @@ class FeedbackAdmin(admin.ModelAdmin):
 
 
 class WasteRequestStatusAdmin(admin.ModelAdmin):
-    list_display = ("waste_request", "pickup_date", "status", "updated_by", "updated_at")
-    list_filter = ("status", "pickup_date")
-    search_fields = ("waste_request__order_id", "waste_category", "waste_type")
+    list_display = ("waste_request", "pickup_date", "status","area",
+        "assigned_staff", "updated_by", "updated_at")
+    list_filter = ("status", "pickup_date","area",
+        "assigned_staff")
+    search_fields = ("waste_request__order_id", "waste_category", "waste_type" ,"area__name",
+        "assigned_staff__user__username",)
     readonly_fields = ("waste_category", "waste_type", "updated_at")
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if not request.GET.get("status__exact"):  # only if no filter applied
+            return qs.filter(status="Pending")
+        return qs
 
 @admin.register(WasteRequestCancelled)
 class WasteRequestCancelledAdmin(admin.ModelAdmin):
@@ -148,6 +164,8 @@ class WasteRequestAdmin(admin.ModelAdmin):
         updates = obj.wasterequestuserupdate_set.all().order_by('pickup_date')
         return ", ".join([str(u.pickup_date) for u in updates])
     updated_dates.short_description = "Updated Pickup Dates"
+
+
     
     def show_per_date_breakdown(self, obj):
      if not obj.pickup_dates:
@@ -229,6 +247,25 @@ class WasteRequestAdmin(admin.ModelAdmin):
 
 
     show_per_date_breakdown.short_description = "Per-Date Amount Breakdown"
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "assigned_staff":
+            obj_id = request.resolver_match.kwargs.get("object_id")
+            try:
+                if obj_id:
+                    waste_request = self.model.objects.get(pk=obj_id)
+                    if waste_request.area:
+                    # Only staff linked to the area
+                        kwargs["queryset"] = Staff.objects.filter(areas=waste_request.area)
+                    else:
+                    # Area empty → show all staff
+                        kwargs["queryset"] = Staff.objects.all()
+                else:
+                # New object → show all staff
+                    kwargs["queryset"] = Staff.objects.all()
+            except self.model.DoesNotExist:
+                kwargs["queryset"] = Staff.objects.all()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(Invoice)
@@ -246,10 +283,6 @@ admin.site.register(WasteRequest, WasteRequestAdmin)
 admin.site.register(Notification)
 admin.site.register(Payment)
 admin.site.register(Refund)
-admin.site.register(CollectionDetail)
-admin.site.register(RequestUpdate)
-admin.site.register(WasteCategory)
-admin.site.register(StaffProfile)
 admin.site.register(City)
 admin.site.register(PickupDate)
 

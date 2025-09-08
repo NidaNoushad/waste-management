@@ -3,7 +3,7 @@ from datetime import timedelta
 import datetime
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 # from dateutil.relativedelta import relativedelta
-from .models import WasteRequest, Notification, Payment, Refund, CollectionDetail, RequestUpdate, WasteCategory, StaffProfile, City, PickupDate, UserProfile, WasteRequestStatus, Invoice, WasteRequestPickup,WasteRequestUserUpdate,Feedback,ContactMessage,UserProfile
+from .models import WasteRequest, Notification, Payment, Refund, City, PickupDate, UserProfile, WasteRequestStatus, Invoice, WasteRequestPickup,WasteRequestUserUpdate,Feedback,ContactMessage,UserProfile
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -12,6 +12,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.core.mail import send_mail
 from django.conf import settings
 import re
+from django.contrib.auth import get_user_model
 
 
 # class RegisterSerializer(serializers.ModelSerializer):
@@ -41,9 +42,44 @@ import re
 #         UserProfile.objects.create(user=user, full_name=full_name, phone_number=phone_number)
 #         return user
 
+# class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+#     username_field = "email"
+
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     username_field = "email"
 
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['email'] = user.email
+        return token
+
+    def validate(self, attrs):
+        email = attrs.get("email")
+        password = attrs.get("password")
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            raise serializers.ValidationError("No account found with this email.")
+
+        if not user.check_password(password):
+            raise serializers.ValidationError("Invalid password.")
+
+        if user.is_staff:
+            raise serializers.ValidationError("Staff cannot login from customer portal.")
+
+        if not user.is_active:
+            raise serializers.ValidationError("This account is inactive.")
+
+        data = super().validate({
+             "username": user.username,
+            "password": password
+        })
+
+        data["email"] = user.email
+        return data
+    
 
 class RegisterSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(write_only=True)
@@ -384,7 +420,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserProfile
-        fields = ["full_name", "email", "phone_number", "address", "city", "zipcode"]
+        fields = ["full_name", "email", "phone_number", "address", "city", "zipcode",  "email_notifications", "sms_notifications"]
 
     # def get_full_name(self, obj):
     #      return f"{obj.user.first_name} {obj.user.last_name}".strip()
@@ -475,29 +511,33 @@ class RefundSerializer(serializers.ModelSerializer):
     model = Refund
     fields = '__all__'
 
-class CollectionDetailSerializer(serializers.ModelSerializer):
-  class Meta:
-    model = CollectionDetail
-    fields = '__all__'
 
-class RequestUpdateSerializer(serializers.ModelSerializer):
-  class Meta:
-    model = RequestUpdate
-    fields = '__all__'
 
-class WasteCategorySerializer(serializers.ModelSerializer):
-  class Meta:
-    model = WasteCategory
-    fields = '__all__'
+User = get_user_model()
+class StaffTokenObtainPairSerializer(TokenObtainPairSerializer):
+    username_field = "username"  # staff login by username
 
-class StaffProfileSerializer(serializers.ModelSerializer):
-  class Meta:
-    model = StaffProfile
-    fields = '__all__'
-  
-# class UserSerializer(serializers.ModelSerializer):
-#   class Meta:
-#     model = User
-#     fields = ['id', 'username', 'email']
+    def validate(self, attrs):
+        username = attrs.get("username")
+        password = attrs.get("password")
 
-  
+        # find user by username
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            raise serializers.ValidationError("No account found with this username.")
+
+        # only allow staff
+        if not user.is_staff:
+            raise serializers.ValidationError("You are not authorized as staff.")
+
+        # check password
+        if not user.check_password(password):
+            raise serializers.ValidationError("Invalid password.")
+
+        if not user.is_active:
+            raise serializers.ValidationError("This account is inactive.")
+
+        data = super().validate({"username": username, "password": password})
+        data["username"] = user.username
+        return data
