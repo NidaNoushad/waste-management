@@ -514,30 +514,57 @@ class RefundSerializer(serializers.ModelSerializer):
 
 
 User = get_user_model()
+# class StaffTokenObtainPairSerializer(TokenObtainPairSerializer):
+#     username_field = "username"  # staff login by username
+
+#     def validate(self, attrs):
+#         username = attrs.get("username")
+#         password = attrs.get("password")
+
+#         # find user by username
+#         try:
+#             user = User.objects.get(username=username)
+#         except User.DoesNotExist:
+#             raise serializers.ValidationError("No account found with this username.")
+
+#         # only allow staff
+#         if not user.is_staff:
+#             raise serializers.ValidationError("You are not authorized as staff.")
+
+#         # check password
+#         if not user.check_password(password):
+#             raise serializers.ValidationError("Invalid password.")
+
+#         if not user.is_active:
+#             raise serializers.ValidationError("This account is inactive.")
+
+#         data = super().validate({"username": username, "password": password})
+#         data["username"] = user.username
+#         return data
+
+
 class StaffTokenObtainPairSerializer(TokenObtainPairSerializer):
-    username_field = "username"  # staff login by username
+    username_field = "username"  # login by username
 
     def validate(self, attrs):
-        username = attrs.get("username")
+        username = attrs.get(self.username_field)
         password = attrs.get("password")
 
-        # find user by username
         try:
             user = User.objects.get(username=username)
         except User.DoesNotExist:
             raise serializers.ValidationError("No account found with this username.")
 
-        # only allow staff
         if not user.is_staff:
             raise serializers.ValidationError("You are not authorized as staff.")
 
-        # check password
         if not user.check_password(password):
             raise serializers.ValidationError("Invalid password.")
 
         if not user.is_active:
             raise serializers.ValidationError("This account is inactive.")
 
-        data = super().validate({"username": username, "password": password})
-        data["username"] = user.username
+        # ✅ call parent with correct attrs
+        data = super().validate(attrs)
+        data.update({"username": user.username, "email": getattr(user, "email", "")})
         return data

@@ -11,6 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 from decimal import Decimal
 from django.utils.decorators import method_decorator
 from rest_framework import serializers
+from rest_framework.permissions import IsAdminUser
 import logging
 # from .utils.invoice_utils import  save_invoice
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -752,8 +753,38 @@ TrashGo Team"""
         "order_id": order.id,             
         "payment_method": order.payment_method,             
         "payment_status": order.payment_status,
-        "transaction_id": order.transaction_id,  # 🔥 INCLUDE IN RESPONSE
+        "transaction_id": order.transaction_id,  # INCLUDE IN RESPONSE
+
     })
+
+# # 🔹 Staff-only endpoint
+#     @action(detail=False, methods=['get'], url_path='staff-tasks',permission_classes=[IsAdminUser])
+#     def staff_tasks(self, request):
+#         if not request.user.is_staff:
+#             return Response({"error": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+
+#         status_filter = request.query_params.get("status")  # e.g. ?status=Pending
+#         qs = self.queryset
+#         if status_filter and status_filter.lower() != "all":
+#             qs = qs.filter(status__iexact=status_filter)
+
+#         serializer = self.get_serializer(qs, many=True)
+#         return Response(serializer.data)
+
+#     @action(detail=True, methods=['post'], url_path='update-status')
+#     def update_status(self, request, pk=None):
+#         if not request.user.is_staff:
+#             return Response({"error": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+
+#         new_status = request.data.get("status")
+#         if new_status not in ["Pending", "On the Way", "Completed", "Cancelled"]:
+#             return Response({"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
+
+#         waste_request = self.get_object()
+#         waste_request.status = new_status
+#         waste_request.save()
+
+#         return Response({"success": True, "status": new_status})
 
 
         

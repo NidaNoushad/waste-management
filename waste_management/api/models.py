@@ -123,7 +123,7 @@ class WasteRequest(models.Model):
                 defaults={"status": "Pending"}
             )
 
-        super().save(*args, **kwargs)
+       
    
 
     def __str__(self):
@@ -152,6 +152,9 @@ class WasteRequestStatus(models.Model):
     # NEW: Store area and assigned staff per pickup
     area = models.ForeignKey("staff.Area", on_delete=models.SET_NULL, null=True, blank=True)
     assigned_staff = models.ForeignKey("staff.Staff", on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # ✅ new field
+    is_paid = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-updated_at"]

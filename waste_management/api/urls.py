@@ -13,6 +13,7 @@ from .views import WasteRequestViewSet, NotificationViewSet, PaymentViewSet, Ref
 router = DefaultRouter()
 # router.register(r'pickup-details', WasteRequestPickupViewSet, basename='pickup-detail')
 # feedback = FeedbackViewSet.as_view({'post': 'create_or_update_feedback'})
+from staff.views import StaffPickupViewSet
 
 router.register(r'waste-requests', WasteRequestViewSet)
 router.register(r'waste-request-status', WasteRequestStatusViewSet)
@@ -25,6 +26,15 @@ router.register(r'cities', CityViewSet)
 router.register(r'pickupdates', PickupDateViewSet)
 router.register(r'invoices', InvoiceViewSet)
 
+
+
+
+
+
+# staff
+# router.register(r'staff', StaffTaskViewSet, basename='staff-tasks')
+
+router.register(r'staff/pickups', StaffPickupViewSet, basename='staff-pickups')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -55,12 +65,6 @@ urlpatterns = [
     path('reset/<str:uid>/<str:token>/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
    path('change-password/', ChangePasswordView.as_view(), name='change-password'),
 path("user-dashboard/", UserDashboardAPIView.as_view(), name="user-dashboard"),
-
-
-
- 
-
-
 ]
 
 if settings.DEBUG:

@@ -143,7 +143,8 @@ class WasteRequestUserUpdateInline(admin.TabularInline):
 class WasteRequestStatusInline(admin.TabularInline):
     model = WasteRequestStatus
     extra = 0
-    fields = ['pickup_date', 'status', 'updated_by', 'updated_at']
+    fields = ['pickup_date', 'status','area',
+        'assigned_staff', 'updated_by', 'updated_at']
     readonly_fields = ['updated_by', 'updated_at']
 
 
