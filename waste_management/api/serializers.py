@@ -3,7 +3,7 @@ from datetime import timedelta
 import datetime
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 # from dateutil.relativedelta import relativedelta
-from .models import WasteRequest, Notification, Payment, Refund, City, PickupDate, UserProfile, WasteRequestStatus, Invoice, WasteRequestPickup,WasteRequestUserUpdate,Feedback,ContactMessage,UserProfile
+from .models import WasteRequest, Notification,   City, PickupDate, UserProfile, WasteRequestStatus, Invoice,WasteRequestUserUpdate,Feedback,ContactMessage,UserProfile
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -15,35 +15,6 @@ import re
 from django.contrib.auth import get_user_model
 
 
-# class RegisterSerializer(serializers.ModelSerializer):
-#     full_name = serializers.CharField(write_only=True)
-#     phone_number = serializers.CharField(write_only=True)
-#     password = serializers.CharField(write_only=True, style={'input_type': 'password'})
-#     password2 = serializers.CharField(write_only=True, style={'input_type': 'password'})
-
-#     class Meta:
-#         model = User
-#         fields = ['username', 'email', 'password', 'password2' ,'full_name', 'phone_number']
-    
-#     def validate(self, attrs):
-#         if attrs['password'] != attrs['password2']:
-#             raise serializers.ValidationError({"password2":"Passwords do not match."})
-#         if not attrs['phone_number'].isdigit() or len(attrs['phone_number'])!=10:
-#             raise serializers.ValidationError({"phone_number":"phone number must be exact 10 digits"})
-#         return attrs
-
-#     def create(self, validated_data):
-        
-#         full_name = validated_data.pop('full_name')
-#         phone_number = validated_data.pop('phone_number')
-#         validated_data.pop('password2')
-#         validated_data['username']=full_name
-#         user = User.objects.create_user(**validated_data)
-#         UserProfile.objects.create(user=user, full_name=full_name, phone_number=phone_number)
-#         return user
-
-# class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
-#     username_field = "email"
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     username_field = "email"
@@ -347,44 +318,44 @@ class WasteRequestStatusSerializer(serializers.ModelSerializer):
 
 
 
-class WasteRequestPickupSerializer(serializers.ModelSerializer):
-    # Include order_id and user details from parent WasteRequest
-    order_id = serializers.CharField(source="waste_request.order_id", read_only=True)
-    user_name = serializers.CharField(source="waste_request.name", read_only=True)
-    user_email = serializers.EmailField(source="waste_request.email", read_only=True)
-    user_phone = serializers.CharField(source="waste_request.phone", read_only=True)
-    user_address = serializers.CharField(source="waste_request.address", read_only=True)
+# class WasteRequestPickupSerializer(serializers.ModelSerializer):
+#     # Include order_id and user details from parent WasteRequest
+#     order_id = serializers.CharField(source="waste_request.order_id", read_only=True)
+#     user_name = serializers.CharField(source="waste_request.name", read_only=True)
+#     user_email = serializers.EmailField(source="waste_request.email", read_only=True)
+#     user_phone = serializers.CharField(source="waste_request.phone", read_only=True)
+#     user_address = serializers.CharField(source="waste_request.address", read_only=True)
 
-    class Meta:
-        model = WasteRequestPickup
-        fields = [
-            "id", "order_id", "pickup_date", "waste_type", "weight", "category",
-            "base_price", "gstAmount", "final_amount", "status",
-            "user_name", "user_email", "user_phone", "user_address",
-            "created_at", "updated_at"
-        ]
-        read_only_fields = ["id", "order_id", "created_at", "updated_at"]
+#     class Meta:
+#         model = WasteRequestPickup
+#         fields = [
+#             "id", "order_id", "pickup_date", "waste_type", "weight", "category",
+#             "base_price", "gstAmount", "final_amount", "status",
+#             "user_name", "user_email", "user_phone", "user_address",
+#             "created_at", "updated_at"
+#         ]
+#         read_only_fields = ["id", "order_id", "created_at", "updated_at"]
 
-    def validate_weight(self, value):
-        if value is not None and value <= 0:
-            raise serializers.ValidationError("Weight must be greater than zero.")
-        return value
+#     def validate_weight(self, value):
+#         if value is not None and value <= 0:
+#             raise serializers.ValidationError("Weight must be greater than zero.")
+#         return value
 
-    def update(self, instance, validated_data):
-        """
-        Custom update logic if needed. 
-        (Here you can also auto-calc base_price, gst, final_amount in backend
-        instead of frontend, for security reasons.)
-        """
-        instance.waste_type = validated_data.get("waste_type", instance.waste_type)
-        instance.weight = validated_data.get("weight", instance.weight)
-        instance.category = validated_data.get("category", instance.category)
-        instance.base_price = validated_data.get("base_price", instance.base_price)
-        instance.gstAmount = validated_data.get("gstAmount", instance.gstAmount)
-        instance.final_amount = validated_data.get("final_amount", instance.final_amount)
-        instance.status = validated_data.get("status", instance.status)
-        instance.save()
-        return instance
+#     def update(self, instance, validated_data):
+#         """
+#         Custom update logic if needed. 
+#         (Here you can also auto-calc base_price, gst, final_amount in backend
+#         instead of frontend, for security reasons.)
+#         """
+#         instance.waste_type = validated_data.get("waste_type", instance.waste_type)
+#         instance.weight = validated_data.get("weight", instance.weight)
+#         instance.category = validated_data.get("category", instance.category)
+#         instance.base_price = validated_data.get("base_price", instance.base_price)
+#         instance.gstAmount = validated_data.get("gstAmount", instance.gstAmount)
+#         instance.final_amount = validated_data.get("final_amount", instance.final_amount)
+#         instance.status = validated_data.get("status", instance.status)
+#         instance.save()
+#         return instance
 
 class WasteRequestUserUpdateSerializer(serializers.ModelSerializer):
   
@@ -397,15 +368,18 @@ class WasteRequestUserUpdateSerializer(serializers.ModelSerializer):
             "pickup_date",
             "waste_type",
             "weight",
-            'economyWeightOption',
+             'economyWeightOption',
             # "economy_weight_option",
             "category",
             "address",
             "email",
             "base_price",
-            # "gst_amount",
             "gstAmount",
             "final_amount",
+            "partial_refund_amount",
+            "partial_refund_id",
+            "partial_refund_status",
+            "partial_refund_processed_at",
             "updated_by",
             "updated_at",
         ]
@@ -415,16 +389,14 @@ class WasteRequestUserUpdateSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source="user.email", required=False)
     full_name = serializers.CharField(required=False) 
-    # full_name = serializers.CharField(source="user.first_name", required=False)
+ 
   
 
     class Meta:
         model = UserProfile
         fields = ["full_name", "email", "phone_number", "address", "city", "zipcode",  "email_notifications", "sms_notifications"]
 
-    # def get_full_name(self, obj):
-    #      return f"{obj.user.first_name} {obj.user.last_name}".strip()
-
+   
     def update(self, instance, validated_data):
         # update user fields
         user_data = validated_data.pop("user", {})
@@ -458,23 +430,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
         return instance
 
-# class UserProfileSerializer(serializers.ModelSerializer):
-#     email = serializers.EmailField(source="user.email", required=True)
 
-#     class Meta:
-#         model = UserProfile
-#         fields = ["id", "full_name", "phone_number", "email"]
 
-#     def update(self, instance, validated_data):
-#         # Update nested user email
-#         user_data = validated_data.pop("user", {})
-#         email = user_data.get("email")
-#         if email:
-#             instance.user.email = email
-#             instance.user.save()
-
-#         # Update UserProfile fields
-#         return super().update(instance, validated_data)
 
 
 class ChangePasswordSerializer(serializers.Serializer):
@@ -501,46 +458,16 @@ class NotificationSerializer(serializers.ModelSerializer):
     fields = '__all__'
 
 
-class PaymentSerializer(serializers.ModelSerializer):
-  class Meta:
-    model = Payment
-    fields = '__all__'
 
-class RefundSerializer(serializers.ModelSerializer):
-  class Meta:
-    model = Refund
-    fields = '__all__'
+
 
 
 
 User = get_user_model()
-# class StaffTokenObtainPairSerializer(TokenObtainPairSerializer):
-#     username_field = "username"  # staff login by username
 
-#     def validate(self, attrs):
-#         username = attrs.get("username")
-#         password = attrs.get("password")
 
-#         # find user by username
-#         try:
-#             user = User.objects.get(username=username)
-#         except User.DoesNotExist:
-#             raise serializers.ValidationError("No account found with this username.")
 
-#         # only allow staff
-#         if not user.is_staff:
-#             raise serializers.ValidationError("You are not authorized as staff.")
 
-#         # check password
-#         if not user.check_password(password):
-#             raise serializers.ValidationError("Invalid password.")
-
-#         if not user.is_active:
-#             raise serializers.ValidationError("This account is inactive.")
-
-#         data = super().validate({"username": username, "password": password})
-#         data["username"] = user.username
-#         return data
 
 
 class StaffTokenObtainPairSerializer(TokenObtainPairSerializer):

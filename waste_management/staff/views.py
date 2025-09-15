@@ -6,15 +6,25 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Count, Q
+from decimal import  ROUND_HALF_UP, InvalidOperation
+from decimal import Decimal
+
+import razorpay
+from django.utils import timezone
+from api.views import initiate_razorpay_refund
+from django.conf import settings
 from collections import defaultdict
 from datetime import timedelta
 from rest_framework.views import APIView
 from datetime import datetime
 from django.utils.timezone import now
 from django.db.models import Sum
+import logging
+from django.db import transaction
+from rest_framework import status as drf_status
 
 
-from api.models import WasteRequest, WasteRequestStatus
+from api.models import WasteRequest, WasteRequestStatus,WasteRequestUserUpdate
 from api.serializers import WasteRequestSerializer
 from .serializers import StaffTaskSerializer
 from .permissions import IsStaffUser
@@ -28,7 +38,7 @@ class CustomPagination(PageNumberPagination):
     max_page_size = 100
 
 
-
+logger = logging.getLogger(__name__)
 
 
 
@@ -40,21 +50,21 @@ class StaffPickupViewSet(viewsets.ViewSet):
         user = request.user
         qs = WasteRequest.objects.all().order_by("-created_at")
 
-        # staff sees only pickups assigned to them
+    # staff sees only pickups assigned to them
         if hasattr(user, "staff"):
             qs = qs.filter(statuses__assigned_staff=user.staff).distinct()
         elif not user.is_staff:
             return Response([], status=403)
 
         flat_rows = []
+
         for req in qs:
-            breakdown_dict = {
-                item["pickup_date"]: item["updated_amount"]
-                for item in WasteRequestSerializer(req).data.get("per_date_breakdown", {}).get("breakdown", [])
-            }
+        # build breakdown dict once per request
+            breakdown_data = WasteRequestSerializer(req).data.get("per_date_breakdown", {}).get("breakdown", [])
+            breakdown_dict = {item["pickup_date"]: item for item in breakdown_data}
 
             for d in (req.pickup_dates or []):
-                # check if this date is assigned to current staff
+            # check if this date is assigned to current staff
                 status_obj = WasteRequestStatus.objects.filter(
                     waste_request=req, pickup_date=d, assigned_staff=user.staff
                 ).first()
@@ -62,25 +72,41 @@ class StaffPickupViewSet(viewsets.ViewSet):
                 if not status_obj:
                     continue  # skip pickups not assigned to this staff
 
-                per_pickup_amount = req.final_amount / max(len(req.pickup_dates or []), 1)
+            # ✅ Check for user update
+                user_update = WasteRequestUserUpdate.objects.filter(
+                    waste_request=req, pickup_date=d
+                ).first()
+
+            # Get breakdown info for this date
+                b_row = breakdown_dict.get(str(d))
+
+                original_amount = float(b_row["original_amount"]) if b_row else 0
+                updated_amount = float(b_row["updated_amount"]) if b_row and b_row["updated_amount"] is not None else original_amount
+                refund_extra = float(b_row["refund_extra"]) if b_row else 0
+
+            # Calculate refund vs extra
+                refund_amount = refund_extra if refund_extra < 0 else 0
+                extra_amount = refund_extra if refund_extra > 0 else 0
 
                 flat_rows.append({
-                    "status_id": status_obj.id,  # unique row ID for updates
-                    "waste_request_id": req.id,
-                    "order_id": req.order_id,
-                    "pickup_date": d,
-                    "status": status_obj.status,
-                    "customer": req.name,
-                    "address": req.address,
-                    "category": req.category,
-                    "waste_type": req.waste_type,
-                    "urgency": req.urgency,
-                    "payment_method": req.payment_method,
-                    "per_date_amount": per_pickup_amount,
-                    "is_paid": status_obj.is_paid, 
+                "status_id": status_obj.id,   # unique row ID for updates
+                "waste_request_id": req.id,
+                "order_id": req.order_id,
+                "pickup_date": d,
+                "status": status_obj.status,
+                "customer": req.name,
+                "address": user_update.address if (user_update and user_update.address) else req.address,
+                "category": user_update.category if user_update else req.category,
+                "waste_type": user_update.waste_type if user_update else req.waste_type,
+                "urgency": req.urgency,
+                "payment_method": req.payment_method,
+                "per_date_amount": updated_amount,  #  show updated
+                "refund_amount": refund_amount,      #  show refund
+                "extra_amount": extra_amount,        #  show extra
+                "is_paid": status_obj.is_paid,
                 })
 
-        # optional filter by status
+    # optional filter by status
         status_filter = request.query_params.get("status")
         if status_filter and status_filter != "all":
             flat_rows = [row for row in flat_rows if row['status'] == status_filter]
@@ -88,6 +114,9 @@ class StaffPickupViewSet(viewsets.ViewSet):
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(flat_rows, request)
         return paginator.get_paginated_response(page)
+
+
+    
 
     @action(detail=True, methods=["put"], url_path="update-status")
     def update_status(self, request, pk=None):
@@ -102,9 +131,18 @@ class StaffPickupViewSet(viewsets.ViewSet):
         new_status = request.data.get("status")
         if new_status not in ["Pending", "Assigned", "On the Way", "Complete", "Cancelled"]:
             return Response({"error": "Invalid status"}, status=400)
-
+    #   update status
         status_obj.status = new_status
         status_obj.save()
+
+        #Get the parent WasteRequest
+        # waste_request = status_obj.waste_request
+
+
+
+        #  Trigger refund if Complete
+        if new_status == "Complete":
+            self.handle_partial_refund(status_obj)
 
         return Response({"success": f"Pickup {pk} updated to {new_status}"}, status=200)
 
@@ -336,3 +374,141 @@ class StaffPickupViewSet(viewsets.ViewSet):
             "status_distribution": status_distribution,
             "completion_trend": completion_trend,
         })
+
+    # @action(detail=True, methods=['put'])
+    # def update_status(self, request, pk=None):
+    #     status_instance = self.get_object()
+    #     new_status = request.data.get('status')
+
+    #     status_instance.status = new_status
+    #     status_instance.save()
+
+    #     # ✅ Trigger refund if Complete
+    #     if new_status == "Complete":
+    #         self.handle_partial_refund(status_instance)
+
+    #     return Response({"success": True, "status": new_status})
+    
+    def handle_partial_refund(self, status_instance):
+   
+        user_update = WasteRequestUserUpdate.objects.filter(
+        waste_request=status_instance.waste_request,
+        pickup_date=status_instance.pickup_date
+    ).first()
+
+        if not user_update:
+            return
+
+    # --- Use original amount per pickup ---
+        req = status_instance.waste_request
+        pickup_date_str = user_update.pickup_date.strftime("%Y-%m-%d") if hasattr(user_update.pickup_date, "strftime") else str(user_update.pickup_date)
+    
+    # Original per-date amount (like in admin breakdown)
+        total_dates = len(req.pickup_dates or [])
+        original_share = Decimal(req.final_amount or 0) / max(total_dates, 1)
+
+        updated_amount = Decimal(user_update.final_amount or 0)
+
+    # Refund only if updated < original
+        refund_amount = original_share - updated_amount
+        if refund_amount <= 0:
+            return  # nothing to refund
+
+        transaction_id = req.transaction_id
+        if not transaction_id:
+            return
+
+    # Trigger Razorpay partial refund
+        refund_result = initiate_razorpay_refund(
+            transaction_id=transaction_id,
+            old_amount=float(original_share),
+        new_amount=float(updated_amount),
+        reason="update"
+    )
+
+        if refund_result.get("success"):
+            user_update.partial_refund_amount = float(refund_amount)
+            user_update.partial_refund_id = refund_result.get("refund_id")
+            user_update.partial_refund_status = "Refund_initiated"
+            user_update.partial_refund_processed_at = timezone.now()
+        else:
+            user_update.partial_refund_status = "Failed"
+
+        user_update.save()
+
+        print(f"Partial refund of {refund_amount} processed for Order {req.order_id}, Pickup {status_instance.pickup_date}")
+
+
+
+
+
+
+
+
+    
+    # def handle_partial_refund(self, status_instance):
+    # # Get the related user update
+    #     user_update = WasteRequestUserUpdate.objects.filter(
+    #     waste_request=status_instance.waste_request,
+    #     pickup_date=status_instance.pickup_date
+    # ).first()
+
+    #     if not user_update:
+    #         return  
+
+    # # --- Get original & updated amounts ---
+    #     req = status_instance.waste_request
+    #     total_dates = len(req.pickup_dates or [])
+    #     # Option 1: Compare total amounts
+    #     original_total = Decimal(req.final_amount or 0)
+    #     updated_total = Decimal(user_update.final_amount) if user_update.final_amount is not None else original_total
+    #     refund_amount = original_total - updated_total if updated_total < original_total else Decimal("0")
+    #     # original_amount = Decimal(req.final_amount or 0) / max(total_dates, 1)  # per-date original
+    #     # updated_amount = Decimal(user_update.final_amount) if user_update.final_amount is not None else original_amount
+
+    #     # refund_amount = original_amount - updated_amount if updated_amount < original_amount else Decimal("0")
+
+
+    
+
+    #     if refund_amount <= 0:
+    #         return  # nothing to refund
+
+    #     transaction_id = req.transaction_id 
+
+    # # --- Trigger Razorpay partial refund ---
+    #     if transaction_id:
+    #         refund_result = initiate_razorpay_refund(
+    #             transaction_id=transaction_id,
+    #             old_amount=original_total,
+    #             new_amount=updated_total,
+    #             reason="update"
+    #             # reason="Partial refund for pickup update"
+    #     )
+
+    #         if refund_result.get("success"):
+    #             user_update.partial_refund_amount = float(refund_amount)
+    #             user_update.partial_refund_id = refund_result.get("refund_id")
+    #             user_update.partial_refund_status ="Refund_initiated"
+    #             user_update.partial_refund_processed_at = timezone.now()
+    #         else:
+    #             user_update.partial_refund_status = "Failed"
+    #         user_update.save()
+           
+
+    # # For logging/debug
+    #     print(f"Partial refund of {refund_amount} processed for Order {req.order_id}, Pickup {status_instance.pickup_date}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+   

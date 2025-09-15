@@ -1,6 +1,7 @@
 
 from rest_framework import viewsets
 import razorpay
+from rest_framework.permissions import BasePermission
 from datetime import date
 from .pagination import CustomPagination
 from django.core.mail import send_mail
@@ -9,6 +10,10 @@ from rest_framework import viewsets, permissions, generics
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.views.decorators.csrf import csrf_exempt
 from decimal import Decimal
+
+# Add these imports at the top of your file (if not already present)
+from decimal import  ROUND_HALF_UP, InvalidOperation
+from django.db.models import Sum
 from django.utils.decorators import method_decorator
 from rest_framework import serializers
 from rest_framework.permissions import IsAdminUser
@@ -44,10 +49,17 @@ import datetime
 from dateutil.relativedelta import relativedelta
 from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
-from .models import WasteRequest, Notification, Payment, Refund,  City, PickupDate, WasteRequestStatus, Invoice,WasteRequestPickup, WasteRequestUserUpdate,WasteRequestCancelled,Feedback,UserProfile
-from .serializers import WasteRequestSerializer, NotificationSerializer, PaymentSerializer, RefundSerializer,   CitySerializer, PickupDateSerializer, RegisterSerializer, WasteRequestStatusSerializer, InvoiceSerializer,WasteRequestUserUpdateSerializer,FeedbackSerializer,ContactMessageSerializer,UserProfileSerializer,ChangePasswordSerializer,PasswordResetRequestSerializer, PasswordResetConfirmSerializer,MyTokenObtainPairSerializer,StaffTokenObtainPairSerializer
-# ,CustomerTokenObtainPairSerializer,StaffTokenObtainPairSerializer
-# ,MyTokenObtainPairSerializer
+from .models import WasteRequest, Notification,    City, PickupDate, WasteRequestStatus, Invoice, WasteRequestUserUpdate,WasteRequestCancelled,Feedback,UserProfile
+from .serializers import WasteRequestSerializer, NotificationSerializer,  CitySerializer, PickupDateSerializer, RegisterSerializer, WasteRequestStatusSerializer, InvoiceSerializer,WasteRequestUserUpdateSerializer,FeedbackSerializer,ContactMessageSerializer,UserProfileSerializer,ChangePasswordSerializer,PasswordResetRequestSerializer, PasswordResetConfirmSerializer,MyTokenObtainPairSerializer,StaffTokenObtainPairSerializer
+
+
+class IsStaffUser(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_staff
+
+class IsNormalUser(BasePermission):
+    def has_permission(self, request, view):
+        return not request.user.is_staff and not request.user.is_superuser
 
 class StaffTokenObtainPairView(TokenObtainPairView):
     serializer_class = StaffTokenObtainPairSerializer
@@ -151,96 +163,6 @@ class VerifyPaymentView(APIView):
 
 
 
-# class CreateRazorpayOrder(APIView):
-    
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request):
-#         amount = request.data.get("amount")
-#         email = request.data.get("email") 
-#         contact = request.data.get("contact") 
-#         if not amount or amount <= 0:
-#             return Response({"error": "Invalid amount"}, status=400)
-
-#         try:
-#             data = {
-#                 "amount": int(amount * 100),  # paise
-#                 "currency": "INR",
-#                 "payment_capture": 1,
-#                  "notes": {                     
-#                     "email": email,
-#                     "contact": contact
-#                 }
-#             }
-#             razorpay_order = client.order.create(data)
-#             return Response({
-#                 "razorpay_order_id": razorpay_order['id'],
-#                 "amount": data['amount'],
-#                 "currency": data['currency'],
-#             })
-#         except Exception as e:
-#             return Response({"error": str(e)}, status=400)
-
-# def initiate_razorpay_refund(transaction_id, amount):
-#     """
-#     Initiate refund through Razorpay
-    
-#     Args:
-#         transaction_id (str): Razorpay payment ID
-#         amount (float): Amount to refund
-    
-#     Returns:
-#         dict: Refund details or error info
-#     """
-#     try:
-#         # Convert amount to paise (Razorpay uses paise)
-#         refund_amount = int(float(amount) * 100)
-        
-#         # Create refund
-#         refund = razorpay_client.payment.refund(transaction_id, {
-#             "amount": refund_amount,
-#             "speed": "optimum",  # or "normal"
-#             "notes": {
-#                 "reason": "User cancellation",
-#                 "initiated_by": "system"
-#             }
-#         })
-        
-#         logger.info(f"Refund successful: {refund['id']} for payment: {transaction_id}")
-        
-#         return {
-#             "success": True,
-#             "refund_id": refund['id'],
-#             "status": refund['status'],  # "processed", "pending", etc.
-#             "amount": float(refund['amount']) / 100,  # Convert back from paise
-#             "created_at": refund['created_at'],
-#             "razorpay_response": refund
-#         }
-        
-#     except razorpay.errors.BadRequestError as e:
-#         logger.error(f"Razorpay bad request: {str(e)}")
-#         return {
-#             "success": False,
-#             "error": f"Invalid request: {str(e)}",
-#             "status": "failed"
-#         }
-        
-#     except razorpay.errors.ServerError as e:
-#         logger.error(f"Razorpay server error: {str(e)}")
-#         return {
-#             "success": False,
-#             "error": "Payment service unavailable",
-#             "status": "failed"
-#         }
-        
-#     except Exception as e:
-#         logger.error(f"Refund failed: {str(e)}")
-#         return {
-#             "success": False,
-#             "error": str(e),
-#             "status": "failed"
-#         }
-
 
 
 def initiate_razorpay_refund(transaction_id, old_amount, new_amount=None, reason="cancel"):
@@ -333,127 +255,9 @@ class RegisterView(APIView):
 
 
 
-# class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
-#     @classmethod
-#     def get_token(cls, user):
-#         token = super().get_token(user)
-#         token['email'] = user.email
-#         return token
-
-#     def validate(self, attrs):
-#         email = attrs.get("email")
-#         password = attrs.get("password")
-
-#         # find user by email
-#         try:
-#             user = User.objects.get(email=email)
-#         except User.DoesNotExist:
-#             raise serializers.ValidationError("No account found with this email.")
-
-#         # check password
-#         if not user.check_password(password):
-#             raise serializers.ValidationError("Invalid password.")
-
-#         if not user.is_active:
-#             raise serializers.ValidationError("This account is inactive.")
-
-#         # call parent with username (JWT requires username internally)
-#         data = super().validate({
-#             "username": user.username,
-#             "password": password
-#         })
-
-#         data["email"] = user.email
-#         return data
 
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
-
-# class StaffLoginView(TokenObtainPairView):
-#     serializer_class = StaffTokenObtainPairSerializer
-
-
-# views.py
-# class StaffLoginView(TokenObtainPairView):
-#     serializer_class = MyTokenObtainPairSerializer
-    
-#     def get_serializer(self, *args, **kwargs):
-#         kwargs['is_staff_login'] = True
-#         return super().get_serializer(*args, **kwargs)
-
-# class CustomerLoginView(TokenObtainPairView):
-#     serializer_class = MyTokenObtainPairSerializer
-    
-#     def get_serializer(self, *args, **kwargs):
-#         kwargs['is_staff_login'] = False
-#         return super().get_serializer(*args, **kwargs)
-
-
-# class MyTokenObtainPairView(TokenObtainPairView):
-#     serializer_class = MyTokenObtainPairSerializer
-# class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
-#     username = serializers.CharField(required=False, allow_blank=True)
-#     email = serializers.EmailField(required=False, allow_blank=True)
-#     password = serializers.CharField(write_only=True)
-
-#     @classmethod
-#     def get_token(cls, user):
-#         token = super().get_token(user)
-#         token['email'] = user.email
-#         token['username'] = user.username
-#         token['is_staff'] = user.is_staff
-#         return token
-
-#     def validate(self, attrs):
-#         username = attrs.get("username")
-#         email = attrs.get("email")
-#         password = attrs.get("password")
-
-#         if not password:
-#             raise serializers.ValidationError("Password is required.")
-
-#         user = None
-
-#         # 🔹 Staff login with username
-#         if username:
-#             try:
-#                 user = User.objects.get(username=username)
-#                 if not user.is_staff:
-#                     raise serializers.ValidationError("Only staff can log in with username.")
-#             except User.DoesNotExist:
-#                 raise serializers.ValidationError("Invalid staff username.")
-
-#         # 🔹 Customer login with email
-#         elif email:
-#             try:
-#                 user = User.objects.get(email=email)
-#                 if user.is_staff:
-#                     raise serializers.ValidationError("Staff must log in with username, not email.")
-#             except User.DoesNotExist:
-#                 raise serializers.ValidationError("Invalid customer email.")
-
-#         else:
-#             raise serializers.ValidationError("Provide email (for customers) or username (for staff).")
-
-#         # 🔹 Password check
-#         if not user.check_password(password):
-#             raise serializers.ValidationError("Invalid password.")
-
-#         if not user.is_active:
-#             raise serializers.ValidationError("This account is inactive.")
-
-#         # ✅ Continue JWT generation
-#         data = super().validate({
-#             "username": user.username,  # JWT still needs username internally
-#             "password": password
-#         })
-
-#         data["email"] = user.email
-#         data["username"] = user.username
-#         data["is_staff"] = user.is_staff
-#         return data
-
-
 
 
 
@@ -688,7 +492,7 @@ class WasteRequestViewSet(viewsets.ModelViewSet):
 
         # Different email content based on payment method
             if payment_method == "Cash on Pickup":
-                email_subject = "Order Confirmation - TrashGo (Cash on Pickup)"
+                email_subject = "Order Confirmation - GoTrash (Cash on Pickup)"
                 email_message = f"""Hello {order.name},
 
 Your order #{order.order_id} has been confirmed!
@@ -705,10 +509,10 @@ Order Details:
 
 Our team will pick up your waste on the scheduled date(s). Please have the exact amount ready for payment.
 
-Thank you for choosing TrashGo!
+Thank you for choosing GoTrash!
 
 Best regards,
-TrashGo Team"""
+GoTrash Team"""
 
             elif payment_method in ["UPI", "Card"]:
                 email_subject = "Payment Successful - TrashGo"
@@ -730,10 +534,10 @@ Order Details:
 
 Our team will pick up your waste on the scheduled date(s).
 
-Thank you for choosing TrashGo!
+Thank you for choosing GoTrash!
 
 Best regards,
-TrashGo Team"""
+GoTrash Team"""
             if hasattr(order.user, "profile") and getattr(order.user.profile, "email_notifications", True):
              send_mail(                 
             subject=email_subject,                 
@@ -756,45 +560,6 @@ TrashGo Team"""
         "transaction_id": order.transaction_id,  # INCLUDE IN RESPONSE
 
     })
-
-# # 🔹 Staff-only endpoint
-#     @action(detail=False, methods=['get'], url_path='staff-tasks',permission_classes=[IsAdminUser])
-#     def staff_tasks(self, request):
-#         if not request.user.is_staff:
-#             return Response({"error": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
-
-#         status_filter = request.query_params.get("status")  # e.g. ?status=Pending
-#         qs = self.queryset
-#         if status_filter and status_filter.lower() != "all":
-#             qs = qs.filter(status__iexact=status_filter)
-
-#         serializer = self.get_serializer(qs, many=True)
-#         return Response(serializer.data)
-
-#     @action(detail=True, methods=['post'], url_path='update-status')
-#     def update_status(self, request, pk=None):
-#         if not request.user.is_staff:
-#             return Response({"error": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
-
-#         new_status = request.data.get("status")
-#         if new_status not in ["Pending", "On the Way", "Completed", "Cancelled"]:
-#             return Response({"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
-
-#         waste_request = self.get_object()
-#         waste_request.status = new_status
-#         waste_request.save()
-
-#         return Response({"success": True, "status": new_status})
-
-
-        
-
-   
-
-   
-   
-   
-
 
 class WasteRequestStatusViewSet(viewsets.ModelViewSet):
     queryset = WasteRequestStatus.objects.all()
@@ -891,7 +656,6 @@ class WasteRequestUserUpdateViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = WasteRequestUserUpdateSerializer
   
-
     def perform_update(self, serializer):
         serializer.save(updated_by=self.request.user)
 
@@ -911,143 +675,76 @@ class WasteRequestUserUpdateViewSet(viewsets.ViewSet):
             return Response({"detail": "WasteRequest not found"}, status=status.HTTP_404_NOT_FOUND)
 
         # Only allow user-editable fields
-        allowed_fields = ["waste_type", "weight", "economy_weight_option", "category", "address", "email", "base_price", "gstAmount", "final_amount" ]
+        allowed_fields = ["waste_type", "weight", "economy_weight_option", "category", "address", "email", "base_price", "gstAmount", "final_amount"]
         update_data = {k: v for k, v in request.data.items() if k in allowed_fields}
 
-        user_update, created = WasteRequestUserUpdate.objects.get_or_create(
-            waste_request=req,
-            pickup_date=pickup_date,
-            defaults={"updated_by": request.user, **update_data}
-        )
+        if not update_data:
+            return Response({"detail": "No valid fields to update"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not created:
-            # overwrite existing record with latest data
+        # *** ADD THIS SECTION: Validate and convert pricing fields to Decimal ***
+        pricing_fields = ["base_price", "gstAmount", "final_amount", "weight"]
+        for field in pricing_fields:
+            if field in update_data and update_data[field] is not None:
+                try:
+                    # Convert to Decimal and round to 2 decimal places
+                    value = Decimal(str(update_data[field]))
+                    update_data[field] = value.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                except (ValueError, TypeError, InvalidOperation):
+                    return Response(
+                        {"detail": f"Invalid value for {field}: {update_data[field]}"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+        # Check if a record already exists
+        user_update = WasteRequestUserUpdate.objects.filter(
+            waste_request=req,
+            pickup_date=pickup_date
+        ).first()
+
+        if user_update:
+            # *** REPLACE THIS SECTION: Update only if something actually changed ***
             has_changes = False
             for k, v in update_data.items():
                 old_value = getattr(user_update, k)
-                if str(old_value) != str(v):   # only if actual change
-                     setattr(user_update, k, v)
-                     has_changes = True
+                
+                # Handle Decimal comparison properly
+                if isinstance(v, Decimal) and old_value is not None:
+                    try:
+                        old_decimal = Decimal(str(old_value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                        if old_decimal != v:
+                            setattr(user_update, k, v)
+                            has_changes = True
+                    except (ValueError, TypeError, InvalidOperation):
+                        # If old value can't be converted to Decimal, treat as different
+                        setattr(user_update, k, v)
+                        has_changes = True
+                elif str(old_value) != str(v):
+                    setattr(user_update, k, v)
+                    has_changes = True
 
-            user_update.updated_by = request.user
-            user_update.is_manual = has_changes 
-            user_update.save()
+            if has_changes:
+                user_update.updated_by = request.user
+                user_update.is_manual = True
+                user_update.save()
+            else:
+                return Response({"detail": "No changes detected"}, status=status.HTTP_200_OK)
+
         else:
-    # If newly created via user update, mark manual too
-            user_update.is_manual = True
-            user_update.save()
-
-        # Return all updated fields + order info
-        response_data = {
-            "order_id": req.order_id,
-            "pickup_date": pickup_date,
-        }
-        # response_data.update(update_data)
+            # Create a new record only if there are values to save
+            user_update = WasteRequestUserUpdate.objects.create(
+                waste_request=req,
+                pickup_date=pickup_date,
+                updated_by=request.user,
+                is_manual=True,
+                **update_data
+            )
         
         serializer = WasteRequestUserUpdateSerializer(user_update)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 
-# class CancelWasteRequestStatusView(generics.UpdateAPIView):
-#     """
-#     PUT /api/user-cancel-request/<waste_request_id>/
-#     Body: { "pickup_date": "YYYY-MM-DD" }
-#     """
-#     queryset = WasteRequestStatus.objects.all()
-#     serializer_class = WasteRequestStatusSerializer
-#     permission_classes = [permissions.IsAuthenticated]
 
-#     def put(self, request, *args, **kwargs):
-#         waste_request_id = self.kwargs.get("waste_request_id")
-#         pickup_date = request.data.get("pickup_date")
-#         payment_method = request.data.get("payment_method", "Cash on Pickup")
-#         transaction_id = request.data.get("transaction_id")
-#         final_amount = request.data.get("final_amount")
-
-#         if not pickup_date:
-#             return Response({"detail": "pickup_date is required"}, status=400)
-
-#         try:
-#             waste_request = WasteRequest.objects.get(id=waste_request_id)
-#         except WasteRequest.DoesNotExist:
-#             return Response({"detail": "WasteRequest not found"}, status=404)
-
-#         # Get or create status object
-#         obj, created = WasteRequestStatus.objects.get_or_create(
-#             waste_request=waste_request,
-#             pickup_date=pickup_date,
-#             defaults={"status": "Cancelled", "updated_by": request.user}
-#         )
-
-#         if not created:
-#             if obj.status == "Cancelled":
-#                 return Response({"detail": "Already cancelled"}, status=400)
-#             obj.status = "Cancelled"
-#             obj.updated_by = request.user
-#             obj.save()
-
-#             # Create cancelled record
-#         cancelled_obj, _ = WasteRequestCancelled.objects.get_or_create(
-#             waste_request=waste_request,
-#             pickup_date=pickup_date,
-#             defaults={
-#                 "final_amount": waste_request.final_amount,
-#                 "cancelled_by": "User"
-#             }
-#         )
-#         today = timezone.now().date()
-#         refund_data = {}
-
-#         # Process refund for online payments
-#         if payment_method != "Cash on Pickup" and (transaction_id or waste_request.transaction_id):
-#             refund_transaction_id = transaction_id or waste_request.transaction_id              
-
-#             refund_amount = cancelled_obj.final_amount
-#             refund_result = initiate_razorpay_refund(
-#                 transaction_id=refund_transaction_id,
-#                 amount=refund_amount
-#             )
-            
-#             if refund_result.get("success"):
-#                 cancelled_obj.refund_id = refund_result.get("refund_id")
-#                 cancelled_obj.refund_status = refund_result.get("status")
-#                 cancelled_obj.refund_amount = refund_result.get("amount")
-#                 cancelled_obj.save()
-                
-#                 refund_data = {
-#                     "refund_id": cancelled_obj.refund_id,
-#                     "refund_status": cancelled_obj.refund_status,
-#                     "refund_amount": cancelled_obj.refund_amount
-#                 }
-#             else:
-#                 cancelled_obj.refund_status = "failed"
-#                 cancelled_obj.refund_error = refund_result.get("error")
-#                 cancelled_obj.save()
-                
-#                 refund_data = {
-#                     "refund_status": "failed",
-#                     "refund_error": refund_result.get("error")
-#                 }
-
-#         # Prepare response
-#         response_data = {
-#             "message": "Pickup cancelled successfully",
-#             "pickup_date": pickup_date,
-#             "status": "Cancelled",
-#             "refund_info": refund_data
-#         }
-
-#         # Add refund details to top level for easier access
-#         if refund_data.get("refund_id"):
-#             response_data.update({
-#                 "refund_id": refund_data["refund_id"],
-#                 "refund_status": refund_data["refund_status"], 
-#                 "refund_amount": refund_data["refund_amount"]
-#             })
-
-#         serializer = self.get_serializer(obj)
-#         return Response(response_data, status=200)
       
 
 
@@ -1154,22 +851,20 @@ class CancelWasteRequestStatusView(generics.UpdateAPIView):
             if refund_result.get("success"):
                 # Update cancelled object with refund details
                 cancelled_obj.refund_id = refund_result.get("refund_id")
-                cancelled_obj.refund_status = "Refund Initiated"
+                cancelled_obj.refund_status = "Refund_initiated"
                 cancelled_obj.refund_amount = refund_result.get("amount", per_pickup_amount)
+                cancelled_obj.refund_processed_at = timezone.now() 
                 cancelled_obj.save()
                 
                 refund_data = {
                     "refund_id": cancelled_obj.refund_id,
                     "refund_status": cancelled_obj.refund_status,
-                    "refund_amount": cancelled_obj.refund_amount
+                    "refund_amount": cancelled_obj.refund_amount,
+                    "refund_processed_at": cancelled_obj.refund_processed_at
                 }
                 
                 # Add to top level response for easier frontend access
-                response_data.update({
-                    "refund_id": cancelled_obj.refund_id,
-                    "refund_status": cancelled_obj.refund_status,
-                    "refund_amount": cancelled_obj.refund_amount
-                })
+                response_data.update(refund_data)
                 
                 logger.info(f"Refund initiated for cancellation: {cancelled_obj.refund_id}")
                 
@@ -1177,11 +872,13 @@ class CancelWasteRequestStatusView(generics.UpdateAPIView):
                 # Handle refund failure
                 cancelled_obj.refund_status = "failed"
                 cancelled_obj.refund_error = refund_result.get("error", "Unknown error")
+                cancelled_obj.refund_processed_at = timezone.now()
                 cancelled_obj.save()
                 
                 refund_data = {
                     "refund_status": "failed",
-                    "refund_error": refund_result.get("error")
+                    "refund_error": refund_result.get("error"),
+                    "refund_processed_at": cancelled_obj.refund_processed_at
                 }
                 
                 response_data["refund_error"] = refund_result.get("error")
@@ -1543,13 +1240,8 @@ class NotificationViewSet(viewsets.ModelViewSet):
     queryset=Notification.objects.all()
     serializer_class=NotificationSerializer
 
-class PaymentViewSet(viewsets.ModelViewSet):
-    queryset=Payment.objects.all()
-    serializer_class=PaymentSerializer
 
-class RefundViewSet(viewsets.ModelViewSet):
-    queryset=Refund.objects.all()
-    serializer_class=RefundSerializer
+
 
 
 

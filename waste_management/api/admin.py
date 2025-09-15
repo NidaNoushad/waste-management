@@ -1,12 +1,14 @@
 from django.utils.html import format_html
 from django.contrib import admin
+from django.core.mail import send_mail
+from django.conf import settings
 from django import forms
 from datetime import datetime
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .serializers import WasteRequestSerializer
+# from .serializers import WasteRequestSerializer
 from staff.models import Staff
-from .models import WasteRequest, Notification, Payment, Refund,  City, PickupDate, WasteRequestStatus, WasteRequestPickup, WasteRequestUserUpdate, WasteRequestCancelled,Invoice,Feedback,ContactMessage,UserProfile
+from .models import WasteRequest, Notification,  City, PickupDate, WasteRequestStatus,  WasteRequestUserUpdate, WasteRequestCancelled,Invoice,Feedback,ContactMessage,UserProfile
 
 
 
@@ -101,12 +103,14 @@ class WasteRequestStatusAdmin(admin.ModelAdmin):
     search_fields = ("waste_request__order_id", "waste_category", "waste_type" ,"area__name",
         "assigned_staff__user__username",)
     readonly_fields = ("waste_category", "waste_type", "updated_at")
-
+    
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         if not request.GET.get("status__exact"):  # only if no filter applied
             return qs.filter(status="Pending")
         return qs
+
+    
 
 @admin.register(WasteRequestCancelled)
 class WasteRequestCancelledAdmin(admin.ModelAdmin):
@@ -116,14 +120,33 @@ class WasteRequestCancelledAdmin(admin.ModelAdmin):
 
 
 @admin.register(WasteRequestUserUpdate)
+
 class WasteRequestUserUpdateAdmin(admin.ModelAdmin):
-    # model = WasteRequestUserUpdate
-    # extra = 0
-    # fields = ['pickup_date', 'weight', 'category', 'waste_type', 'final_amount', 'updated_by', 'updated_at']
- 
-    list_display = ("waste_request", "pickup_date", "updated_by", "updated_at")
-    list_filter = ("updated_at", "updated_by")
-    readonly_fields = ['updated_by', 'updated_at']
+    list_display = (
+        "id",
+        "waste_request",
+        "pickup_date",
+        "waste_type",
+        "category",
+        "weight",
+        "economy_weight_option",
+      
+        "address",
+        "final_amount",
+        "partial_refund_status",
+        "updated_by",
+        "updated_at",
+    )
+    search_fields = ("waste_request__order_id", "pickup_date", "address", "waste_type")
+    list_filter = ("partial_refund_status", "updated_at", "pickup_date")
+    ordering = ("-updated_at",)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.filter(is_manual=True)   # Only show manual updates
+
+
+
 
 
 @admin.register(ContactMessage)
@@ -279,11 +302,10 @@ class InvoiceAdmin(admin.ModelAdmin):
 
 
 admin.site.register(WasteRequestStatus)
-admin.site.register(WasteRequestPickup)
 admin.site.register(WasteRequest, WasteRequestAdmin)
 admin.site.register(Notification)
-admin.site.register(Payment)
-admin.site.register(Refund)
+
+
 admin.site.register(City)
 admin.site.register(PickupDate)
 

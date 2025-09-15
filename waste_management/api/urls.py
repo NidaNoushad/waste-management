@@ -8,8 +8,8 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 
 # import viewsets
-from .views import WasteRequestViewSet, NotificationViewSet, PaymentViewSet, RefundViewSet,    CityViewSet, PickupDateViewSet, PickupDateByCityView, RegisterView, WasteRequestStatusViewSet, WasteRequestPickupViewSet, InvoiceViewSet, WasteRequestUserUpdateViewSet,CalculatePriceView,CancelWasteRequestStatusView,InvoiceUploadView,FeedbackAPIView, ContactMessageView,UserProfileView,ChangePasswordView,PasswordResetRequestView, PasswordResetConfirmView, CreateRazorpayOrderView, VerifyPaymentView,UserDashboardAPIView, MyTokenObtainPairView,StaffTokenObtainPairView
-# ,CustomerLoginView,StaffLoginView,
+from .views import WasteRequestViewSet, NotificationViewSet,   CityViewSet, PickupDateViewSet, PickupDateByCityView, RegisterView, WasteRequestStatusViewSet, WasteRequestPickupViewSet, InvoiceViewSet, WasteRequestUserUpdateViewSet,CalculatePriceView,CancelWasteRequestStatusView,InvoiceUploadView,FeedbackAPIView, ContactMessageView,UserProfileView,ChangePasswordView,PasswordResetRequestView, PasswordResetConfirmView, CreateRazorpayOrderView, VerifyPaymentView,UserDashboardAPIView, MyTokenObtainPairView,StaffTokenObtainPairView
+
 router = DefaultRouter()
 # router.register(r'pickup-details', WasteRequestPickupViewSet, basename='pickup-detail')
 # feedback = FeedbackViewSet.as_view({'post': 'create_or_update_feedback'})
@@ -20,8 +20,7 @@ router.register(r'waste-request-status', WasteRequestStatusViewSet)
 router.register(r'waste-request-pickups', WasteRequestPickupViewSet, basename='waste-request-pickups')
 router.register(r'user-update-request', WasteRequestUserUpdateViewSet, basename='user-update-request')
 router.register(r'notifications', NotificationViewSet)
-router.register(r'payments', PaymentViewSet)
-router.register(r'refunds', RefundViewSet)
+
 router.register(r'cities', CityViewSet)
 router.register(r'pickupdates', PickupDateViewSet)
 router.register(r'invoices', InvoiceViewSet)

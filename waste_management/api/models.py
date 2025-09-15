@@ -222,46 +222,58 @@ class WasteRequestStatus(models.Model):
                 "cancelled_by": cancelled_by_user_type,
             }
         )
-
     def __str__(self):
-        return f"{self.waste_request.order_id} - {self.pickup_date} - {self.status}"
+        # customer_name = (
+        #     self.waste_request.name.get_full_name()
+        #     if hasattr(self.waste_request.name, "get_full_name") and self.waste_request.name.get_full_name()
+        #     else self.waste_request.name
+        # )
+        customer_name = self.waste_request.name or "Unknown"
+
+    
+        return f"{self.waste_request.order_id}  - {self.pickup_date} - {self.status} - {customer_name} "
 
 
 
 
 
 
-class WasteRequestPickup(models.Model):  
-    waste_request = models.ForeignKey(WasteRequest, on_delete=models.CASCADE, related_name="pickups")
-    pickup_date = models.DateField()
-    waste_type = models.CharField(max_length=20, null=True, blank=True)
-    weight = models.FloatField(null=True, blank=True)
-    category = models.CharField(max_length=50, null=True, blank=True)
+# class WasteRequestPickup(models.Model):  
+#     waste_request = models.ForeignKey(WasteRequest, on_delete=models.CASCADE, related_name="pickups")
+#     pickup_date = models.DateField()
+#     waste_type = models.CharField(max_length=20, null=True, blank=True)
+#     weight = models.FloatField(null=True, blank=True)
+#     category = models.CharField(max_length=50, null=True, blank=True)
 
-    base_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    gstAmount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    final_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+#     base_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+#     gstAmount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+#     final_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
-    status = models.CharField(
-        max_length=20,
-        choices=[("Pending","Pending"),("Assigned","Assigned"),("Completed","Completed"),("Cancelled","Cancelled")],
-        default="Pending"
-    )
+#     status = models.CharField(
+#         max_length=20,
+#         choices=[("Pending","Pending"),("Assigned","Assigned"),("Completed","Completed"),("Cancelled","Cancelled")],
+#         default="Pending"
+#     )
 
-    refund_status = [
-    ("Refund_initiated", "Refund Initiated"),
-    ("Refunded", "Refunded"),
-    ("Failed", "Failed"),
-]
+#     refund_status = [
+#     ("Refund_initiated", "Refund Initiated"),
+#     ("Refunded", "Refunded"),
+#     ("Failed", "Failed"),
+# ]
 
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return f"{self.waste_request.order_id} - {self.pickup_date}"
+#     def __str__(self):
+#         return f"{self.waste_request.order_id} - {self.pickup_date}"
 
 class WasteRequestUserUpdate(models.Model):
+    REFUND_STATUS_CHOICES = [
+      ("Refund_initiated", "Refund Initiated"),
+      ("Refunded", "Refunded"),
+      ("Failed", "Failed"),
+    ]
     waste_request = models.ForeignKey(WasteRequest, on_delete=models.CASCADE )
     pickup_date = models.DateField()
     waste_type = models.CharField(max_length=50, blank=True, null=True)
@@ -273,16 +285,20 @@ class WasteRequestUserUpdate(models.Model):
     base_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     gstAmount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     final_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    refund_id = models.CharField(max_length=100, blank=True, null=True)
+    partial_refund_id = models.CharField(max_length=100, blank=True, null=True)
     
-    refund_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    refund_processed_at = models.DateTimeField(blank=True, null=True)
+    partial_refund_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    partial_refund_processed_at = models.DateTimeField(blank=True, null=True)
+    partial_refund_status = models.CharField(max_length=30, choices=REFUND_STATUS_CHOICES, blank=True, null=True)
     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_manual = models.BooleanField(default=False) 
 
     class Meta:
         unique_together = ("waste_request", "pickup_date")
+
+    def __str__(self):
+        return f"{self.waste_request.order_id} - {self.pickup_date} - {self.final_amount}"
 
 class WasteRequestCancelled(models.Model):
     CANCELLED_BY_CHOICES = [
@@ -318,32 +334,6 @@ class WasteRequestCancelled(models.Model):
         return f"{self.waste_request.order_id} - {self.pickup_date} - Cancelled by {self.cancelled_by}"
 
 
-# @receiver(post_delete, sender=WasteRequestStatus)
-# def sync_when_status_deleted(sender, instance, **kwargs):
-#     """
-#     If a Cancelled status row is deleted from admin inline,
-#     delete the matching WasteRequestCancelled row too.
-#     """
-#     WasteRequestCancelled.objects.filter(
-#         waste_request=instance.waste_request,
-#         pickup_date=instance.pickup_date
-#     ).delete()
-
-# @receiver(post_delete, sender=WasteRequestCancelled)
-# def sync_when_cancelled_deleted(sender, instance, **kwargs):
-#     """
-#     If a WasteRequestCancelled row is deleted from admin inline,
-#     restore/ensure the status is not Cancelled (back to Pending).
-#     """
-#     status_obj, created = WasteRequestStatus.objects.get_or_create(
-#         waste_request=instance.waste_request,
-#         pickup_date=instance.pickup_date,
-#         defaults={"status": "Pending"}
-#     )
-#     if not created and status_obj.status == "Cancelled":
-#         status_obj.status = "Pending"
-#         status_obj.save(update_fields=["status", "updated_at"])
-
 class Invoice(models.Model):
     related_request = models.ForeignKey("WasteRequest", on_delete=models.CASCADE, related_name="invoices")
     related_update = models.ForeignKey("WasteRequestUserUpdate", on_delete=models.SET_NULL, blank=True, null=True)
@@ -352,31 +342,6 @@ class Invoice(models.Model):
 
 
 
-# class UserFeedback(models.Model):
-    
-#     waste_request = models.ForeignKey(WasteRequest, on_delete=models.CASCADE, related_name="feedbacks", default=1)
-#     pickup_date = models.DateField(null=True, blank=True) 
-#     user = models.ForeignKey(User, on_delete=models.CASCADE)
-#     rating = models.DecimalField(max_digits=3, decimal_places=1)  # 0.0 to 5.0
-#     comment = models.TextField(blank=True, null=True)
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     updated_at = models.DateTimeField(auto_now=True)
-
-#     class Meta:
-#         unique_together = ('waste_request', 'pickup_date', 'user')   # Only one feedback per user per pickup
-
-
-
-# class Invoice(models.Model):
-#     related_request = models.ForeignKey(WasteRequest, on_delete=models.CASCADE, null=True, blank=True)
-#     related_update = models.ForeignKey( WasteRequestPickup, on_delete=models.CASCADE, null=True, blank=True)
-#     invoice_file = models.FileField(upload_to="invoices/")
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     amount = models.FloatField(null=True, blank=True)
-#     gst_amount = models.FloatField(null=True, blank=True)
-#     additional_charges = models.FloatField(null=True, blank=True)
-#     def __str__(self):
-#         return f"Invoice #{self.id} for Request #{self.related_request.id}"
 
 
 
@@ -410,12 +375,7 @@ class ContactMessage(models.Model):
         return f"{self.name} - {self.subject}"
 
 
-class AdjustmentInvoice(models.Model):
-    pickup = models.ForeignKey('WasteRequestPickup', on_delete=models.CASCADE, related_name='adjustments')
-    amount = models.FloatField()
-    reason = models.TextField(blank=True, null=True)
-    paid = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+
 
 
 
@@ -464,22 +424,5 @@ class Payment(models.Model):
     def __str__(self):
         return f"Payment #{self.id} - {self.payment_status} - ₹{self.amount_paid}"
 
-class Refund(models.Model):
-    REFUND_STATUS_CHOICES = [
-        ('Requested', 'Requested'),
-        ('Approved', 'Approved'),
-        ('Rejected', 'Rejected'),
-        ('Refunded', 'Refunded'),
-    ]
-
-    payment = models.ForeignKey('Payment', on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    refund_amount = models.DecimalField(max_digits=8, decimal_places=2)
-    reason = models.TextField()
-    refund_status = models.CharField(max_length=10, choices=REFUND_STATUS_CHOICES, default='Requested')
-    requested_on = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Refund #{self.id} - {self.refund_status}"
 
 
