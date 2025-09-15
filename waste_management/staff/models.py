@@ -1,6 +1,9 @@
 # Create your models here.
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
+# from django.utils.html import format_html
+
 
 class Staff(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -27,6 +30,8 @@ class Staff(models.Model):
             self.user.is_staff = True
             self.user.save()
      super().save(*args, **kwargs)
+
+     
 
 
 class Area(models.Model):

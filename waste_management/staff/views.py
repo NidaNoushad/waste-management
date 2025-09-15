@@ -8,7 +8,6 @@ from rest_framework.pagination import PageNumberPagination
 from django.db.models import Count, Q
 from decimal import  ROUND_HALF_UP, InvalidOperation
 from decimal import Decimal
-
 import razorpay
 from django.utils import timezone
 from api.views import initiate_razorpay_refund
@@ -358,6 +357,9 @@ class StaffPickupViewSet(viewsets.ViewSet):
             for month, data in sorted(trend_data.items())
         ]
 
+
+         
+
         return Response({
             "staff_name": staff.full_name,
             "summary": {
@@ -375,19 +377,7 @@ class StaffPickupViewSet(viewsets.ViewSet):
             "completion_trend": completion_trend,
         })
 
-    # @action(detail=True, methods=['put'])
-    # def update_status(self, request, pk=None):
-    #     status_instance = self.get_object()
-    #     new_status = request.data.get('status')
 
-    #     status_instance.status = new_status
-    #     status_instance.save()
-
-    #     # ✅ Trigger refund if Complete
-    #     if new_status == "Complete":
-    #         self.handle_partial_refund(status_instance)
-
-    #     return Response({"success": True, "status": new_status})
     
     def handle_partial_refund(self, status_instance):
    
@@ -446,69 +436,3 @@ class StaffPickupViewSet(viewsets.ViewSet):
 
 
     
-    # def handle_partial_refund(self, status_instance):
-    # # Get the related user update
-    #     user_update = WasteRequestUserUpdate.objects.filter(
-    #     waste_request=status_instance.waste_request,
-    #     pickup_date=status_instance.pickup_date
-    # ).first()
-
-    #     if not user_update:
-    #         return  
-
-    # # --- Get original & updated amounts ---
-    #     req = status_instance.waste_request
-    #     total_dates = len(req.pickup_dates or [])
-    #     # Option 1: Compare total amounts
-    #     original_total = Decimal(req.final_amount or 0)
-    #     updated_total = Decimal(user_update.final_amount) if user_update.final_amount is not None else original_total
-    #     refund_amount = original_total - updated_total if updated_total < original_total else Decimal("0")
-    #     # original_amount = Decimal(req.final_amount or 0) / max(total_dates, 1)  # per-date original
-    #     # updated_amount = Decimal(user_update.final_amount) if user_update.final_amount is not None else original_amount
-
-    #     # refund_amount = original_amount - updated_amount if updated_amount < original_amount else Decimal("0")
-
-
-    
-
-    #     if refund_amount <= 0:
-    #         return  # nothing to refund
-
-    #     transaction_id = req.transaction_id 
-
-    # # --- Trigger Razorpay partial refund ---
-    #     if transaction_id:
-    #         refund_result = initiate_razorpay_refund(
-    #             transaction_id=transaction_id,
-    #             old_amount=original_total,
-    #             new_amount=updated_total,
-    #             reason="update"
-    #             # reason="Partial refund for pickup update"
-    #     )
-
-    #         if refund_result.get("success"):
-    #             user_update.partial_refund_amount = float(refund_amount)
-    #             user_update.partial_refund_id = refund_result.get("refund_id")
-    #             user_update.partial_refund_status ="Refund_initiated"
-    #             user_update.partial_refund_processed_at = timezone.now()
-    #         else:
-    #             user_update.partial_refund_status = "Failed"
-    #         user_update.save()
-           
-
-    # # For logging/debug
-    #     print(f"Partial refund of {refund_amount} processed for Order {req.order_id}, Pickup {status_instance.pickup_date}")
-
-
-
-
-
-
-
-
-
-
-
-
-
-   
