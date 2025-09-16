@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     "django_filters",
+    'import_export',
     "api.apps.ApiConfig",
     # 'api',
     'staff',

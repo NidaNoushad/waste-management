@@ -4,12 +4,13 @@
 from django.contrib import admin
 from .models import Staff, Area
 from api.models import WasteRequestStatus
+from import_export.admin import ImportExportModelAdmin
 from django.utils.html import format_html
 
 
 
 @admin.register(Staff)
-class StaffAdmin(admin.ModelAdmin):
+class StaffAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     list_display = ("user", "full_name", "email", "phone","overall_performance")
     search_fields = ("user__username", "user__email", "user__profile__phone_number", "user__profile__full_name")
     filter_horizontal = ("areas",)
@@ -75,7 +76,7 @@ class StaffAdmin(admin.ModelAdmin):
 
 
 @admin.register(Area)
-class AreaAdmin(admin.ModelAdmin):
+class AreaAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     list_display = ("name", "zipcodes")
     search_fields = ("name", "zipcodes")
 

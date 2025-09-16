@@ -77,7 +77,7 @@ class WasteRequest(models.Model):
     additional_charges = models.FloatField(default=0)
     final_amount = models.FloatField(null=True, blank=True)
     pickup_dates=models.JSONField(null=True,blank=True)
-    invoice_url = models.CharField(max_length=500, blank=True, null=True)
+    # invoice_url = models.CharField(max_length=500, blank=True, null=True)
 
     # Payment fields
     payment_method = models.CharField(max_length=50, choices=PAYMENT_METHODS, null=True, blank=True)
@@ -91,11 +91,11 @@ class WasteRequest(models.Model):
      #order Id
     order_id = models.CharField(max_length=20, unique=True, blank=True, null=True)
       # auto-detected area (set when request is saved)
-    area = models.ForeignKey("staff.Area", on_delete=models.SET_NULL, null=True, blank=True)
-    assigned_staff = models.ForeignKey(
-        Staff, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="requests"
-    )
+    # area = models.ForeignKey("staff.Area", on_delete=models.SET_NULL, null=True, blank=True)
+    # assigned_staff = models.ForeignKey(
+    #     Staff, on_delete=models.SET_NULL, null=True, blank=True,
+    #     related_name="requests"
+    # )
 
     def save(self, *args, **kwargs):
         if not self.order_id:

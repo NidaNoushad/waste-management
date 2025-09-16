@@ -5,6 +5,7 @@ from django.conf import settings
 from django import forms
 from datetime import datetime
 from django.contrib.auth.models import User
+from import_export.admin import ImportExportModelAdmin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 # from .serializers import WasteRequestSerializer
 from staff.models import Staff
@@ -20,7 +21,7 @@ class UserProfileInline(admin.StackedInline):
 
 
 # Custom User Admin
-class CustomUserAdmin(BaseUserAdmin):
+class CustomUserAdmin(ImportExportModelAdmin,BaseUserAdmin):
     inlines = (UserProfileInline,)
 
     # Only show email (username is internally same as email)
@@ -89,13 +90,13 @@ class WasteRequestCancelledInline(admin.TabularInline):
 
 
 @admin.register(Feedback)
-class FeedbackAdmin(admin.ModelAdmin):
+class FeedbackAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     list_display = ("id", "waste_request","comment", "user", "pickup_date", "rating", "created_at")
     list_filter = ("rating", "created_at")
     search_fields = ("waste_request__order_id", "user__username", "comment")
 
 
-class WasteRequestStatusAdmin(admin.ModelAdmin):
+class WasteRequestStatusAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     list_display = ("waste_request", "pickup_date", "status","area",
         "assigned_staff", "updated_by", "updated_at")
     list_filter = ("status", "pickup_date","area",
@@ -113,7 +114,7 @@ class WasteRequestStatusAdmin(admin.ModelAdmin):
     
 
 @admin.register(WasteRequestCancelled)
-class WasteRequestCancelledAdmin(admin.ModelAdmin):
+class WasteRequestCancelledAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     list_display = ("waste_request", "pickup_date", "cancelled_by", "final_amount", "cancelled_at")
     list_filter = ("cancelled_by",)
     search_fields = ("waste_request__order_id", "category", "waste_type")
@@ -121,7 +122,7 @@ class WasteRequestCancelledAdmin(admin.ModelAdmin):
 
 @admin.register(WasteRequestUserUpdate)
 
-class WasteRequestUserUpdateAdmin(admin.ModelAdmin):
+class WasteRequestUserUpdateAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     list_display = (
         "id",
         "waste_request",
@@ -150,7 +151,7 @@ class WasteRequestUserUpdateAdmin(admin.ModelAdmin):
 
 
 @admin.register(ContactMessage)
-class ContactMessageAdmin(admin.ModelAdmin):
+class ContactMessageAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     list_display = ('name', 'email', 'phone', 'subject', 'is_member', 'user','created_at')
     list_filter = ('is_member', 'created_at')
     search_fields = ('name', 'email', 'subject', 'message')
@@ -171,7 +172,7 @@ class WasteRequestStatusInline(admin.TabularInline):
     readonly_fields = ['updated_by', 'updated_at']
 
 
-class WasteRequestAdmin(admin.ModelAdmin):
+class WasteRequestAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     list_display = ['order_id', 'name', 'user', 'category', 'waste_type', 'has_user_updates', 'updated_dates', 'show_per_date_breakdown']
     search_fields = ['order_id', 'name', 'email', 'phone']
     inlines = [WasteRequestStatusInline, WasteRequestUserUpdateInline,  WasteRequestCancelledInline, InvoiceInline]
