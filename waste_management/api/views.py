@@ -50,8 +50,12 @@ from dateutil.relativedelta import relativedelta
 from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
 from .models import WasteRequest, Notification,    City, PickupDate, WasteRequestStatus, Invoice, WasteRequestUserUpdate,WasteRequestCancelled,Feedback,UserProfile
-from .serializers import WasteRequestSerializer, NotificationSerializer,  CitySerializer, PickupDateSerializer, RegisterSerializer, WasteRequestStatusSerializer, InvoiceSerializer,WasteRequestUserUpdateSerializer,FeedbackSerializer,ContactMessageSerializer,UserProfileSerializer,ChangePasswordSerializer,PasswordResetRequestSerializer, PasswordResetConfirmSerializer,MyTokenObtainPairSerializer,StaffTokenObtainPairSerializer
+from .serializers import WasteRequestSerializer, NotificationSerializer,  CitySerializer, PickupDateSerializer, RegisterSerializer, WasteRequestStatusSerializer, InvoiceSerializer,WasteRequestUserUpdateSerializer,FeedbackSerializer,ContactMessageSerializer,UserProfileSerializer,ChangePasswordSerializer,PasswordResetRequestSerializer, PasswordResetConfirmSerializer,MyTokenObtainPairSerializer,StaffTokenObtainPairSerializer,AdminTokenObtainPairSerializer
 
+
+
+class AdminTokenObtainPairView(TokenObtainPairView):
+    serializer_class = AdminTokenObtainPairSerializer
 
 class IsStaffUser(BasePermission):
     def has_permission(self, request, view):
@@ -63,6 +67,8 @@ class IsNormalUser(BasePermission):
 
 class StaffTokenObtainPairView(TokenObtainPairView):
     serializer_class = StaffTokenObtainPairSerializer
+
+
 
 # Create your views here.
 razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
@@ -391,6 +397,14 @@ class WasteRequestViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user_id = self.request.query_params.get("user")
+        if user_id:
+            qs = qs.filter(user_id=user_id)  # only this user's requests
+        return qs
+
+
     def perform_create(self, serializer):
      data = serializer.validated_data
      pickup_dates = data.get("pickup_dates") or []
@@ -565,12 +579,15 @@ class WasteRequestStatusViewSet(viewsets.ModelViewSet):
     queryset = WasteRequestStatus.objects.all()
     serializer_class = WasteRequestStatusSerializer
     permission_classes = [IsAuthenticated]
-
     def get_queryset(self):
-        # If normal user, only show their requests
         if not self.request.user.is_staff:
             return self.queryset.filter(waste_request__user=self.request.user)
+        user_id = self.request.query_params.get("user")
+        if user_id:
+            return self.queryset.filter(waste_request__user__id=user_id)
         return self.queryset
+
+ 
 
 # history
 class WasteRequestPickupViewSet(viewsets.ViewSet):
@@ -1115,41 +1132,8 @@ class UserDashboardAPIView(APIView):
         })
 
 
-# class FeedbackAPIView(APIView):
-#     permission_classes = [IsAuthenticated]
 
-#     def post(self, request, pk):
-#         pickup_date = request.data.get("pickup_date")
-#         if not pickup_date:
-#             return Response({"error": "pickup_date is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-#         try:
-#             waste_request = WasteRequest.objects.get(pk=pk, user=request.user)
-#         except WasteRequest.DoesNotExist:
-#             return Response({"error": "Request not found"}, status=status.HTTP_404_NOT_FOUND)
-
-#         # ✅ Check if that date exists in this request
-#         if pickup_date not in [str(d) for d in (waste_request.pickup_dates or [])]:
-#             return Response({"error": "Invalid pickup_date for this request"}, status=status.HTTP_400_BAD_REQUEST)
-
-#         # ✅ Only allow feedback if status = Complete for that date
-#         status_obj = waste_request.statuses.filter(pickup_date=pickup_date).first()
-#         if not status_obj or status_obj.status != "Complete":
-#             return Response(
-#                 {"error": "Feedback allowed only after pickup is completed."},
-#                 status=status.HTTP_400_BAD_REQUEST,
-#             )
-
-#         feedback, created = UserFeedback.objects.update_or_create(
-#             waste_request=waste_request,
-#             pickup_date=pickup_date,
-#             user=request.user,
-#             defaults={
-#                 "comment": request.data.get("comment", ""),
-#                 "rating": request.data.get("rating", 0),
-#             },
-#         )
-#         return Response(UserFeedbackSerializer(feedback).data, status=status.HTTP_200_OK)
 
         
     
@@ -1210,7 +1194,6 @@ class InvoiceUploadView(APIView):
 
 
 
-
 class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -1227,12 +1210,7 @@ class UserProfileView(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# class UserProfileView(generics.RetrieveUpdateAPIView):
-#     serializer_class = UserProfileSerializer
-#     permission_classes = [permissions.IsAuthenticated]
 
-#     def get_object(self):
-#         return UserProfile.objects.get(user=self.request.user)
 
 
 

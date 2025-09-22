@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from api.models import WasteRequestStatus  # import from your main api app
+from .models import Staff,Area
 
 class StaffTaskSerializer(serializers.ModelSerializer):
     orderId = serializers.CharField(source="waste_request.order_id", read_only=True)
@@ -17,3 +18,20 @@ class StaffTaskSerializer(serializers.ModelSerializer):
         model = WasteRequestStatus
         fields = ["id", "orderId", "customer",   "is_paid", "address", "pickupDates", "status",
                   "category", "wasteType", "urgency", "paymentMethod", "amount"]
+
+
+class AreaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Area
+        fields = ['id', 'name']
+
+class StaffSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username", read_only=True)
+    full_name = serializers.CharField(source="user.profile.full_name", read_only=True)
+    email = serializers.CharField(source="user.email", read_only=True)
+    phone = serializers.CharField(source="user.profile.phone_number", read_only=True)
+    areas = AreaSerializer(many=True, read_only=True)  # serialize the ManyToMany field
+
+    class Meta:
+        model = Staff
+        fields = ['id', 'username', 'full_name', 'email', 'phone', 'areas']

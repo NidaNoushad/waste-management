@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "api.apps.ApiConfig",
     # 'api',
     'staff',
+    'adminpanel',
 ]
 
 MIDDLEWARE = [

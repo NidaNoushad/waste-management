@@ -22,10 +22,10 @@ import logging
 from django.db import transaction
 from rest_framework import status as drf_status
 
-
+from .models import Staff
 from api.models import WasteRequest, WasteRequestStatus,WasteRequestUserUpdate
 from api.serializers import WasteRequestSerializer
-from .serializers import StaffTaskSerializer
+from .serializers import StaffTaskSerializer,StaffSerializer
 from .permissions import IsStaffUser
 
 
@@ -433,6 +433,8 @@ class StaffPickupViewSet(viewsets.ViewSet):
 
 
 
-
-
+class StaffViewSet(viewsets.ModelViewSet):
+    queryset = Staff.objects.all()
+    serializer_class = StaffSerializer
+    permission_classes = [IsAuthenticated]  # Only staff/admin can access
     

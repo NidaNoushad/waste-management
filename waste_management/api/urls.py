@@ -8,12 +8,11 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 
 # import viewsets
-from .views import WasteRequestViewSet, NotificationViewSet,   CityViewSet, PickupDateViewSet, PickupDateByCityView, RegisterView, WasteRequestStatusViewSet, WasteRequestPickupViewSet, InvoiceViewSet, WasteRequestUserUpdateViewSet,CalculatePriceView,CancelWasteRequestStatusView,InvoiceUploadView,FeedbackAPIView, ContactMessageView,UserProfileView,ChangePasswordView,PasswordResetRequestView, PasswordResetConfirmView, CreateRazorpayOrderView, VerifyPaymentView,UserDashboardAPIView, MyTokenObtainPairView,StaffTokenObtainPairView
+from .views import WasteRequestViewSet, NotificationViewSet,   CityViewSet, PickupDateViewSet, PickupDateByCityView, RegisterView, WasteRequestStatusViewSet, WasteRequestPickupViewSet, InvoiceViewSet, WasteRequestUserUpdateViewSet,CalculatePriceView,CancelWasteRequestStatusView,InvoiceUploadView,FeedbackAPIView, ContactMessageView,UserProfileView,ChangePasswordView,PasswordResetRequestView, PasswordResetConfirmView, CreateRazorpayOrderView, VerifyPaymentView,UserDashboardAPIView, MyTokenObtainPairView,StaffTokenObtainPairView,AdminTokenObtainPairView
 
 router = DefaultRouter()
-# router.register(r'pickup-details', WasteRequestPickupViewSet, basename='pickup-detail')
-# feedback = FeedbackViewSet.as_view({'post': 'create_or_update_feedback'})
-from staff.views import StaffPickupViewSet
+
+from staff.views import StaffPickupViewSet,StaffViewSet
 
 router.register(r'waste-requests', WasteRequestViewSet)
 router.register(r'waste-request-status', WasteRequestStatusViewSet)
@@ -34,12 +33,13 @@ router.register(r'invoices', InvoiceViewSet)
 # router.register(r'staff', StaffTaskViewSet, basename='staff-tasks')
 
 router.register(r'staff/pickups', StaffPickupViewSet, basename='staff-pickups')
+router.register(r'stafflist', StaffViewSet, basename='staff')
 
 urlpatterns = [
     path('', include(router.urls)),
     
-    # 🔹 Customer login (old way, email only)
-    # path('customer/login/', CustomerLoginView.as_view(), name='customer_login'),
+  #admin login
+   path("admin/login/", AdminTokenObtainPairView.as_view(), name="admin_login"),
 
     # 🔹 Staff login (username only)
     # path('staff/login/', StaffLoginView.as_view(), name='staff_login'),

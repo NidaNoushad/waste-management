@@ -87,15 +87,12 @@ class WasteRequest(models.Model):
 
     status = models.CharField(max_length=20, default="Pending")
     created_at = models.DateTimeField(auto_now_add=True)
+    area = models.ForeignKey("staff.Area", on_delete=models.SET_NULL, null=True, blank=True)
+    assigned_staff = models.ForeignKey("staff.Staff", on_delete=models.SET_NULL, null=True, blank=True)
      
      #order Id
     order_id = models.CharField(max_length=20, unique=True, blank=True, null=True)
-      # auto-detected area (set when request is saved)
-    # area = models.ForeignKey("staff.Area", on_delete=models.SET_NULL, null=True, blank=True)
-    # assigned_staff = models.ForeignKey(
-    #     Staff, on_delete=models.SET_NULL, null=True, blank=True,
-    #     related_name="requests"
-    # )
+   
 
     def save(self, *args, **kwargs):
         if not self.order_id:
@@ -223,50 +220,12 @@ class WasteRequestStatus(models.Model):
             }
         )
     def __str__(self):
-        # customer_name = (
-        #     self.waste_request.name.get_full_name()
-        #     if hasattr(self.waste_request.name, "get_full_name") and self.waste_request.name.get_full_name()
-        #     else self.waste_request.name
-        # )
+       
         customer_name = self.waste_request.name or "Unknown"
 
     
         return f"{self.waste_request.order_id}  - {self.pickup_date} - {self.status} - {customer_name} "
 
-
-
-
-
-
-# class WasteRequestPickup(models.Model):  
-#     waste_request = models.ForeignKey(WasteRequest, on_delete=models.CASCADE, related_name="pickups")
-#     pickup_date = models.DateField()
-#     waste_type = models.CharField(max_length=20, null=True, blank=True)
-#     weight = models.FloatField(null=True, blank=True)
-#     category = models.CharField(max_length=50, null=True, blank=True)
-
-#     base_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-#     gstAmount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-#     final_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-
-#     status = models.CharField(
-#         max_length=20,
-#         choices=[("Pending","Pending"),("Assigned","Assigned"),("Completed","Completed"),("Cancelled","Cancelled")],
-#         default="Pending"
-#     )
-
-#     refund_status = [
-#     ("Refund_initiated", "Refund Initiated"),
-#     ("Refunded", "Refunded"),
-#     ("Failed", "Failed"),
-# ]
-
-
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     updated_at = models.DateTimeField(auto_now=True)
-
-#     def __str__(self):
-#         return f"{self.waste_request.order_id} - {self.pickup_date}"
 
 class WasteRequestUserUpdate(models.Model):
     REFUND_STATUS_CHOICES = [
@@ -402,6 +361,13 @@ class Notification(models.Model):
     message = models.TextField()
     notification_type = models.CharField(max_length=10, choices=NOTIFICATION_TYPES)
     send_at = models.DateTimeField(auto_now_add=True)
+    def create_notification(user, message, notif_type="email"):
+   
+        Notification.objects.create(
+        user=user,
+        message=message,
+        notification_type=notif_type
+    )
 
     def __str__(self):
         return f"{self.notification_type.upper()} to {self.user.username} at {self.send_at}"

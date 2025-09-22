@@ -21,10 +21,14 @@ def create_pickup_status(sender, instance, created, **kwargs):
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
         UserProfile.objects.create(user=instance)
+    else:
+        # make sure profile exists for old users too
+        UserProfile.objects.get_or_create(user=instance)
 
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
-    instance.userprofile.save()
+    # instance.userprofile.save()
+      instance.profile.save()
 
 @receiver(pre_save, sender=WasteRequestStatus)
 def cache_old_status(sender, instance, **kwargs):

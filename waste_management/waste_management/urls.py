@@ -28,4 +28,5 @@ urlpatterns = [
     # JWT token endpoints
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),  # login
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),  # refresh
+    path('api/adminpanel/', include('adminpanel.urls')),
 ]

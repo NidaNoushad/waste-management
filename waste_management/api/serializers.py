@@ -3,7 +3,7 @@ from datetime import timedelta
 import datetime
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 # from dateutil.relativedelta import relativedelta
-from .models import WasteRequest, Notification,   City, PickupDate, UserProfile, WasteRequestStatus, Invoice,WasteRequestUserUpdate,Feedback,ContactMessage,UserProfile
+from .models import WasteRequest, Notification,   City, PickupDate, UserProfile, WasteRequestStatus, Invoice,WasteRequestUserUpdate,Feedback,ContactMessage,UserProfile,WasteRequestCancelled
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -13,6 +13,8 @@ from django.core.mail import send_mail
 from django.conf import settings
 import re
 from django.contrib.auth import get_user_model
+from staff.models import Staff
+from staff.serializers import StaffSerializer
 
 
 
@@ -189,6 +191,9 @@ class FeedbackSerializer(serializers.ModelSerializer):
         fields = ["id", "waste_request", "pickup_date", "user", "comment", "rating", "created_at"]
         read_only_fields = ["id", "user", "created_at","waste_request"]
 
+    def get_pickup_date(self, obj):
+        return obj.pickup_date.date if obj.pickup_date else None
+
 class ContactMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContactMessage
@@ -312,6 +317,17 @@ class WasteRequestSerializer(serializers.ModelSerializer):
     #  return breakdown
 
 class WasteRequestStatusSerializer(serializers.ModelSerializer):
+    customer = serializers.CharField(source="waste_request.name", read_only=True)
+    address = serializers.CharField(source="waste_request.address", read_only=True)
+    category = serializers.CharField(source="waste_request.category", read_only=True)
+    waste_type = serializers.CharField(source="waste_request.waste_type", read_only=True)
+    order_id = serializers.CharField(source="waste_request.order_id", read_only=True)
+    assigned_staff = StaffSerializer(read_only=True)
+    assigned_staff_id = serializers.PrimaryKeyRelatedField(
+    queryset=Staff.objects.all(), source="assigned_staff", write_only=True, allow_null=True,required=False
+)
+   
+
     class Meta:
         model = WasteRequestStatus
         fields = '__all__'
@@ -360,6 +376,8 @@ class WasteRequestStatusSerializer(serializers.ModelSerializer):
 class WasteRequestUserUpdateSerializer(serializers.ModelSerializer):
   
     economyWeightOption = serializers.CharField(source="economy_weight_option", required=False, allow_null=True)
+    payment_method = serializers.CharField(source="waste_request.payment_method", read_only=True)
+    order_id = serializers.CharField(source="waste_request.order_id", read_only=True)
     class Meta:
         model = WasteRequestUserUpdate
         fields = [
@@ -382,19 +400,48 @@ class WasteRequestUserUpdateSerializer(serializers.ModelSerializer):
             "partial_refund_processed_at",
             "updated_by",
             "updated_at",
+            "payment_method",
+            "order_id"
         ]
         read_only_fields = ["id", "updated_by", "updated_at"]
 
 
+class WasteRequestCancelledSerializer(serializers.ModelSerializer):
+    payment_method = serializers.CharField(source="waste_request.payment_method", read_only=True)
+    order_id = serializers.CharField(source="waste_request.order_id", read_only=True)
+
+    class Meta:
+        model = WasteRequestCancelled
+        fields = [
+            "id",
+            "waste_request",
+            "pickup_date",
+            "waste_type",
+            "category",
+            "final_amount",
+            "cancelled_by",
+            "cancelled_at",
+            "refund_status",
+            "refund_amount",
+            "refund_processed_at",
+            "payment_method",
+            "order_id",
+        ]
+        read_only_fields = ["id", "cancelled_at"]
+
+
+
 class UserProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source="user.email", required=False)
+    username = serializers.CharField(source="user.username", read_only=True)
+    date_joined = serializers.DateTimeField(source="user.date_joined", read_only=True)
     full_name = serializers.CharField(required=False) 
  
   
 
     class Meta:
         model = UserProfile
-        fields = ["full_name", "email", "phone_number", "address", "city", "zipcode",  "email_notifications", "sms_notifications"]
+        fields = [  "username","full_name", "email", "phone_number","date_joined", "address", "city", "zipcode",  "email_notifications", "sms_notifications"]
 
    
     def update(self, instance, validated_data):
@@ -409,20 +456,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
         if "first_name" in user_data:
             user.first_name = user_data["first_name"]
 
-        # update full_name (split into first/last)
-        # full_name = self.context["request"].data.get("full_name")
-        # if full_name:
-        #     parts = full_name.strip().split(" ", 1)
-        #     user.first_name = parts[0]
-        #     user.last_name = parts[1] if len(parts) > 1 else ""
-
         user.save()
 
-        # update profile fields
-        # instance.phone_number = validated_data.get("phone", instance.phone_number)
-        # instance.address = validated_data.get("address", instance.address)
-        # instance.city = validated_data.get("city", instance.city)
-        # instance.zip_code = validated_data.get("zip_code", instance.zip_code)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
        
@@ -465,11 +500,6 @@ class NotificationSerializer(serializers.ModelSerializer):
 
 User = get_user_model()
 
-
-
-
-
-
 class StaffTokenObtainPairSerializer(TokenObtainPairSerializer):
     username_field = "username"  # login by username
 
@@ -495,3 +525,38 @@ class StaffTokenObtainPairSerializer(TokenObtainPairSerializer):
         data = super().validate(attrs)
         data.update({"username": user.username, "email": getattr(user, "email", "")})
         return data
+
+
+
+
+class AdminTokenObtainPairSerializer(TokenObtainPairSerializer):
+        username_field = "username"  # login with username
+
+        def validate(self, attrs):
+            username = attrs.get(self.username_field)
+            password = attrs.get("password")
+
+            try:
+                user = User.objects.get(username=username)
+            except User.DoesNotExist:
+                raise serializers.ValidationError("No account found with this username.")
+
+            if not user.is_superuser:  # ✅ only superuser can login
+                raise serializers.ValidationError("You are not authorized as admin.")
+
+            if not user.check_password(password):
+                raise serializers.ValidationError("Invalid password.")
+
+            if not user.is_active:
+                raise serializers.ValidationError("This account is inactive.")
+
+        # ✅ parent validate (to generate tokens)
+            data = super().validate(attrs)
+
+        # add some extra info in response
+            data.update({
+                "username": user.username,
+                "email": user.email,
+                "is_superuser": user.is_superuser,
+            })
+            return data
