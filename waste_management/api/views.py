@@ -1113,6 +1113,9 @@ class UserDashboardAPIView(APIView):
         notifications.sort(key=lambda x: priority_order.get(x["type"], 4))
         notifications = notifications[:5]
 
+        profile = getattr(user, 'profile', None)  # safely get UserProfile if it exists
+        full_name = profile.full_name if profile and profile.full_name else user.get_full_name() or user.username
+
         # Final Response
         return Response({
             "quickStats": {
@@ -1122,7 +1125,8 @@ class UserDashboardAPIView(APIView):
                 "pendingPayments": pending_payments,
             },
             "user": {
-                "name": qs.first().name if qs.exists() else (user.get_full_name() or user.username),
+                # "name": qs.first().name if qs.exists() else (user.get_full_name() or user.username),
+                "name": full_name,
                 "email": user.email
             },
             "pendingPayments": pending_payments_list,

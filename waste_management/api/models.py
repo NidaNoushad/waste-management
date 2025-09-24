@@ -16,7 +16,6 @@ class UserProfile(models.Model):
     address = models.TextField(blank=True, null=True)
     city = models.CharField(max_length=100, blank=True, null=True)
     zipcode = models.CharField(max_length=10, blank=True, null=True)
-    # ✅ NEW FIELDS
     email_notifications = models.BooleanField(default=True)
     sms_notifications = models.BooleanField(default=True)
 
@@ -30,6 +29,7 @@ class City(models.Model):
 
     def __str__(self):
         return self.name
+
 class PickupDate(models.Model):
     city = models.ForeignKey(City, on_delete=models.CASCADE,  related_name='pickup_dates')
     date=models.DateField()
@@ -49,11 +49,7 @@ class WasteRequest(models.Model):
         ("Failed", "Failed"),
         ("Refunded","Refunded")
     ]
-
-    
-
     user = models.ForeignKey(User, on_delete=models.CASCADE)  # User ID
-    # name = models.CharField(max_length=100)
     name = models.CharField(max_length=100, null=True, blank=True)
     email = models.EmailField(blank=True, null=True)
     phone = models.CharField(max_length=10, null=True, blank=True)
@@ -73,17 +69,15 @@ class WasteRequest(models.Model):
     duration = models.IntegerField(blank=True, null=True)
     base_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     gstAmount= models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    # pickup_prices = models.JSONField(null=True, blank=True, help_text="Stores price per pickup date")
     additional_charges = models.FloatField(default=0)
     final_amount = models.FloatField(null=True, blank=True)
     pickup_dates=models.JSONField(null=True,blank=True)
-    # invoice_url = models.CharField(max_length=500, blank=True, null=True)
 
     # Payment fields
     payment_method = models.CharField(max_length=50, choices=PAYMENT_METHODS, null=True, blank=True)
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default="Pending")
     transaction_id = models.CharField(max_length=150, null=True, blank=True)
-    receipt_file = models.FileField(upload_to="receipts/", null=True, blank=True)
+    
 
     status = models.CharField(max_length=20, default="Pending")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -111,7 +105,7 @@ class WasteRequest(models.Model):
         is_new = self.pk is None
         super().save(*args, **kwargs)
 
-        # 3️⃣If new request, create WasteRequestStatus for each pickup date
+        # If new request, create WasteRequestStatus for each pickup date
         if is_new:
             for d in (self.pickup_dates or []):
                 WasteRequestStatus.objects.get_or_create(
@@ -119,9 +113,6 @@ class WasteRequest(models.Model):
                 pickup_date=d,
                 defaults={"status": "Pending"}
             )
-
-       
-   
 
     def __str__(self):
         return f"Order {self.id} - {self.name}"

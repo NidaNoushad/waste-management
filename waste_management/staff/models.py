@@ -8,6 +8,7 @@ from django.utils import timezone
 class Staff(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     areas = models.ManyToManyField("Area", blank=True, related_name="staff")
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return self.user.username

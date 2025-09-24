@@ -437,4 +437,16 @@ class StaffViewSet(viewsets.ModelViewSet):
     queryset = Staff.objects.all()
     serializer_class = StaffSerializer
     permission_classes = [IsAuthenticated]  # Only staff/admin can access
+
+    def get_queryset(self):
+        # only return active staff
+        return Staff.objects.all()
+
+
+class ActiveStaffViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = StaffSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Staff.objects.filter(is_active=True)
     

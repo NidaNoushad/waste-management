@@ -12,7 +12,7 @@ from .views import WasteRequestViewSet, NotificationViewSet,   CityViewSet, Pick
 
 router = DefaultRouter()
 
-from staff.views import StaffPickupViewSet,StaffViewSet
+from staff.views import StaffPickupViewSet,StaffViewSet,ActiveStaffViewSet
 
 router.register(r'waste-requests', WasteRequestViewSet)
 router.register(r'waste-request-status', WasteRequestStatusViewSet)
@@ -34,6 +34,7 @@ router.register(r'invoices', InvoiceViewSet)
 
 router.register(r'staff/pickups', StaffPickupViewSet, basename='staff-pickups')
 router.register(r'stafflist', StaffViewSet, basename='staff')
+router.register(r'activestaff', ActiveStaffViewSet, basename='active-staff')
 
 urlpatterns = [
     path('', include(router.urls)),

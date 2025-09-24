@@ -34,4 +34,4 @@ class StaffSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Staff
-        fields = ['id', 'username', 'full_name', 'email', 'phone', 'areas']
+        fields = ['id', 'username', 'full_name', 'email', 'phone', 'areas', 'is_active']

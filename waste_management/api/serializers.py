@@ -15,6 +15,7 @@ import re
 from django.contrib.auth import get_user_model
 from staff.models import Staff
 from staff.serializers import StaffSerializer
+from .models import ContactMessage
 
 
 
@@ -263,11 +264,7 @@ class WasteRequestSerializer(serializers.ModelSerializer):
         d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d)
         for d in getattr(obj, "cancelled_pickups", obj.cancelled_pickups.none()).values_list('pickup_date', flat=True)
     ]
-    #  cancelled_dates = obj.cancelled_pickups.values_list('pickup_date', flat=True) if hasattr(obj, "cancelled_pickups") else []
-    #  cancelled_dates = [
-    #     (d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d))
-    #     for d in cancelled_dates
-    # ]
+  
 
     # Valid pickup dates
      valid_dates = [
@@ -288,8 +285,7 @@ class WasteRequestSerializer(serializers.ModelSerializer):
     for upd in updates if upd.is_manual  # only override if manual
 }
 
-    #  total_original = 0  # Initialize before the loop
-    #  total_updated = 0 
+  
      invoice_total = 0
 
     # Build breakdown
@@ -332,46 +328,6 @@ class WasteRequestStatusSerializer(serializers.ModelSerializer):
         model = WasteRequestStatus
         fields = '__all__'
 
-
-
-# class WasteRequestPickupSerializer(serializers.ModelSerializer):
-#     # Include order_id and user details from parent WasteRequest
-#     order_id = serializers.CharField(source="waste_request.order_id", read_only=True)
-#     user_name = serializers.CharField(source="waste_request.name", read_only=True)
-#     user_email = serializers.EmailField(source="waste_request.email", read_only=True)
-#     user_phone = serializers.CharField(source="waste_request.phone", read_only=True)
-#     user_address = serializers.CharField(source="waste_request.address", read_only=True)
-
-#     class Meta:
-#         model = WasteRequestPickup
-#         fields = [
-#             "id", "order_id", "pickup_date", "waste_type", "weight", "category",
-#             "base_price", "gstAmount", "final_amount", "status",
-#             "user_name", "user_email", "user_phone", "user_address",
-#             "created_at", "updated_at"
-#         ]
-#         read_only_fields = ["id", "order_id", "created_at", "updated_at"]
-
-#     def validate_weight(self, value):
-#         if value is not None and value <= 0:
-#             raise serializers.ValidationError("Weight must be greater than zero.")
-#         return value
-
-#     def update(self, instance, validated_data):
-#         """
-#         Custom update logic if needed. 
-#         (Here you can also auto-calc base_price, gst, final_amount in backend
-#         instead of frontend, for security reasons.)
-#         """
-#         instance.waste_type = validated_data.get("waste_type", instance.waste_type)
-#         instance.weight = validated_data.get("weight", instance.weight)
-#         instance.category = validated_data.get("category", instance.category)
-#         instance.base_price = validated_data.get("base_price", instance.base_price)
-#         instance.gstAmount = validated_data.get("gstAmount", instance.gstAmount)
-#         instance.final_amount = validated_data.get("final_amount", instance.final_amount)
-#         instance.status = validated_data.get("status", instance.status)
-#         instance.save()
-#         return instance
 
 class WasteRequestUserUpdateSerializer(serializers.ModelSerializer):
   
@@ -481,19 +437,10 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 
 
-
-
-
-
-
-
 class NotificationSerializer(serializers.ModelSerializer):
   class Meta:
     model = Notification
     fields = '__all__'
-
-
-
 
 
 
@@ -560,3 +507,22 @@ class AdminTokenObtainPairSerializer(TokenObtainPairSerializer):
                 "is_superuser": user.is_superuser,
             })
             return data
+
+
+
+class ContactMessageSerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(source="user.username", read_only=True)  # optional
+
+    class Meta:
+        model = ContactMessage
+        fields = [
+            "id",
+            "name",
+            "email",
+            "phone",
+            "subject",
+            "message",
+            "is_member",
+            "user_name",
+            "created_at",
+        ]
