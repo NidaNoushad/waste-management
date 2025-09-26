@@ -10,8 +10,6 @@ from rest_framework import viewsets, permissions, generics
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.views.decorators.csrf import csrf_exempt
 from decimal import Decimal
-
-# Add these imports at the top of your file (if not already present)
 from decimal import  ROUND_HALF_UP, InvalidOperation
 from django.db.models import Sum
 from django.utils.decorators import method_decorator
@@ -49,8 +47,8 @@ import datetime
 from dateutil.relativedelta import relativedelta
 from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
-from .models import WasteRequest, Notification,    City, PickupDate, WasteRequestStatus, Invoice, WasteRequestUserUpdate,WasteRequestCancelled,Feedback,UserProfile
-from .serializers import WasteRequestSerializer, NotificationSerializer,  CitySerializer, PickupDateSerializer, RegisterSerializer, WasteRequestStatusSerializer, InvoiceSerializer,WasteRequestUserUpdateSerializer,FeedbackSerializer,ContactMessageSerializer,UserProfileSerializer,ChangePasswordSerializer,PasswordResetRequestSerializer, PasswordResetConfirmSerializer,MyTokenObtainPairSerializer,StaffTokenObtainPairSerializer,AdminTokenObtainPairSerializer
+from .models import WasteRequest,    City, PickupDate, WasteRequestStatus, Invoice, WasteRequestUserUpdate,WasteRequestCancelled,Feedback,UserProfile
+from .serializers import WasteRequestSerializer,  CitySerializer, PickupDateSerializer, RegisterSerializer, WasteRequestStatusSerializer, InvoiceSerializer,WasteRequestUserUpdateSerializer,FeedbackSerializer,ContactMessageSerializer,UserProfileSerializer,ChangePasswordSerializer,PasswordResetRequestSerializer, PasswordResetConfirmSerializer,MyTokenObtainPairSerializer,StaffTokenObtainPairSerializer,AdminTokenObtainPairSerializer
 
 
 
@@ -473,7 +471,7 @@ class WasteRequestViewSet(viewsets.ModelViewSet):
         order = self.get_object()         
         payment_method = request.data.get('payment_method')         
         razorpay_payment_id = request.data.get('razorpay_payment_id')
-        transaction_id = request.data.get('transaction_id')  # 🔥 ADD THIS LINE
+        transaction_id = request.data.get('transaction_id') 
           
         if payment_method not in ["Cash on Pickup", "UPI", "Card"]:             
             return Response({"error": "Invalid payment method"}, status=status.HTTP_400_BAD_REQUEST)          
@@ -484,15 +482,15 @@ class WasteRequestViewSet(viewsets.ModelViewSet):
         if payment_method == "Cash on Pickup":           
             order.payment_status = "Pending"         
         elif payment_method in ["UPI", "Card"]:             
-            if razorpay_payment_id or transaction_id:  # 🔥 UPDATED CONDITION
+            if razorpay_payment_id or transaction_id:  
                 order.payment_status = "Paid"                 
-                order.transaction_id = razorpay_payment_id or transaction_id  # 🔥 UPDATED
+                order.transaction_id = razorpay_payment_id or transaction_id  #  UPDATED
             else:                 
                 order.payment_status = "Pending"         
                  
         order.save()  # save the order first                 
 
-    # 🔥 SEND EMAIL FOR ALL PAYMENT METHODS
+    # SEND EMAIL FOR ALL PAYMENT METHODS
         try:                 
             print(f"Sending email to: {order.email}")
         
@@ -571,7 +569,7 @@ GoTrash Team"""
         "order_id": order.id,             
         "payment_method": order.payment_method,             
         "payment_status": order.payment_status,
-        "transaction_id": order.transaction_id,  # INCLUDE IN RESPONSE
+        "transaction_id": order.transaction_id,  
 
     })
 
@@ -623,11 +621,23 @@ class WasteRequestPickupViewSet(viewsets.ViewSet):
                     waste_request=req, pickup_date=d
                 ).first()
                 status = status_obj.status if status_obj else "Pending"
+
+                if req.payment_method == "Cash on Pickup":
+                    if status_obj and status_obj.is_paid:
+                        payment_status = "Paid"
+                        is_paid = True
+                    else:
+                        payment_status = "Pending"
+                        is_paid = False
+                else:
+    # For online or other methods, use the request's own payment_status
+                    payment_status = req.payment_status
+                    is_paid = (payment_status.lower() == "paid")
                 # find cancelled record for this pickup_date
                 cancelled = req.cancelled_pickups.filter(pickup_date=d).first()
                 # for pickup in req.pickups.all():  # <-- use related_name 'pickups'
                 #  status = pickup.status 
-                        # ✅ Fetch all feedbacks for this pickup date
+                        # Fetch all feedbacks for this pickup date
                 feedbacks = list(req.feedbacks.filter(pickup_date=d).values("comment", "rating", "pickup_date"))
                 flat_rows.append({
                     "id": req.id,
@@ -638,28 +648,25 @@ class WasteRequestPickupViewSet(viewsets.ViewSet):
                      "waste_type": user_update.waste_type if user_update else req.waste_type,
                      "category": user_update.category if user_update else req.category,
                     "payment_method": req.payment_method,
-                    "payment_status": req.payment_status,
+                  
+                    "is_paid": is_paid, 
+                    "payment_status": payment_status,
                     "transaction_id": req.transaction_id if req.payment_method != "Cash on Pickup" else None, 
                     "urgency":req.urgency,
                     "status": status,
                     "address": user_update.address if (user_update and user_update.address) else req.address,
                     "email": user_update.email if (user_update and user_update.email) else req.email,
-                    "weight": user_update.weight if (user_update and user_update.weight) else req.weight,  # ✅ added weight
+                    "weight": user_update.weight if (user_update and user_update.weight) else req.weight,  #  added weight
                     "amount": breakdown_dict.get(str(d), 0),
                     "per_date_amount": per_pickup_amount,
                     "refund_id": cancelled.refund_id if cancelled else None,
                     "refund_status": cancelled.refund_status if cancelled else None,
                     "refund_amount": cancelled.refund_amount if cancelled else None,
-                   
-                    # "address": req.address,
-                    # "email":req.email,
-                    # "invoice_url": req.invoice_url,   # add this
                     "can_update": status in ["Assigned", "Pending"],  # matches frontend logic
                     "can_cancel": status in ["Assigned", "Pending"],  # same
                     "invoice_url": req.invoices.first().invoice_file.url if req.invoices.exists() else None,
                     "feedbacks": feedbacks
-                    # "feedback_rating": feedback_obj.rating if feedback_obj else None,
-                    # "feedback_comment": feedback_obj.comment if feedback_obj else None
+                   
                 })
         status_filter = request.query_params.get("status")
         if status_filter and status_filter != "all":
@@ -698,7 +705,7 @@ class WasteRequestUserUpdateViewSet(viewsets.ViewSet):
         if not update_data:
             return Response({"detail": "No valid fields to update"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # *** ADD THIS SECTION: Validate and convert pricing fields to Decimal ***
+      
         pricing_fields = ["base_price", "gstAmount", "final_amount", "weight"]
         for field in pricing_fields:
             if field in update_data and update_data[field] is not None:
@@ -959,9 +966,8 @@ class UserDashboardAPIView(APIView):
             status__in=["Assigned", "Pending","on the way"]
         ).count()
 
-        # For missing status calculation - you may need to adjust this logic
-        # This is a placeholder - implement based on your specific requirements
-        missing_status_count = 0  # Implement your logic here
+    
+        missing_status_count = 0  
 
         active_requests = db_active + missing_status_count
 
@@ -1125,7 +1131,7 @@ class UserDashboardAPIView(APIView):
                 "pendingPayments": pending_payments,
             },
             "user": {
-                # "name": qs.first().name if qs.exists() else (user.get_full_name() or user.username),
+               
                 "name": full_name,
                 "email": user.email
             },
@@ -1218,9 +1224,9 @@ class UserProfileView(APIView):
 
 
 
-class NotificationViewSet(viewsets.ModelViewSet):
-    queryset=Notification.objects.all()
-    serializer_class=NotificationSerializer
+# class NotificationViewSet(viewsets.ModelViewSet):
+#     queryset=Notification.objects.all()
+#     serializer_class=NotificationSerializer
 
 
 

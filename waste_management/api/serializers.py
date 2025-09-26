@@ -3,7 +3,7 @@ from datetime import timedelta
 import datetime
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 # from dateutil.relativedelta import relativedelta
-from .models import WasteRequest, Notification,   City, PickupDate, UserProfile, WasteRequestStatus, Invoice,WasteRequestUserUpdate,Feedback,ContactMessage,UserProfile,WasteRequestCancelled
+from .models import WasteRequest,    City, PickupDate, UserProfile, WasteRequestStatus, Invoice,WasteRequestUserUpdate,Feedback,ContactMessage,UserProfile,WasteRequestCancelled
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -252,9 +252,9 @@ class WasteRequestSerializer(serializers.ModelSerializer):
             validated_data['pickup_dates'] = [str(d) for d in validated_data['pickup_dates']]
         return super().update(instance, validated_data)
 
-      # --------------------------
-    # 🔥 Per-Date Breakdown Logic
-    # --------------------------
+
+    # Per-Date Breakdown Logic
+
     # For frontend (showing per-date breakdown, safe with defaults)
     def get_per_date_breakdown(self, obj):
      breakdown = []
@@ -437,10 +437,10 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 
 
-class NotificationSerializer(serializers.ModelSerializer):
-  class Meta:
-    model = Notification
-    fields = '__all__'
+# class NotificationSerializer(serializers.ModelSerializer):
+#   class Meta:
+#     model = Notification
+#     fields = '__all__'
 
 
 
@@ -468,7 +468,7 @@ class StaffTokenObtainPairSerializer(TokenObtainPairSerializer):
         if not user.is_active:
             raise serializers.ValidationError("This account is inactive.")
 
-        # ✅ call parent with correct attrs
+       
         data = super().validate(attrs)
         data.update({"username": user.username, "email": getattr(user, "email", "")})
         return data
@@ -488,7 +488,7 @@ class AdminTokenObtainPairSerializer(TokenObtainPairSerializer):
             except User.DoesNotExist:
                 raise serializers.ValidationError("No account found with this username.")
 
-            if not user.is_superuser:  # ✅ only superuser can login
+            if not user.is_superuser:  #  only superuser can login
                 raise serializers.ValidationError("You are not authorized as admin.")
 
             if not user.check_password(password):
@@ -497,10 +497,10 @@ class AdminTokenObtainPairSerializer(TokenObtainPairSerializer):
             if not user.is_active:
                 raise serializers.ValidationError("This account is inactive.")
 
-        # ✅ parent validate (to generate tokens)
+        # parent validate (to generate tokens)
             data = super().validate(attrs)
 
-        # add some extra info in response
+
             data.update({
                 "username": user.username,
                 "email": user.email,

@@ -60,7 +60,7 @@ def send_status_email(sender, instance, created, **kwargs):
         subject = f"Waste Pickup Status Update - {instance.status}"
         pickup_date_str = instance.pickup_date.strftime("%Y-%m-%d") if instance.pickup_date else "N/A"
 
-        # Custom messages per status
+      
         if instance.status == "Assigned" and instance.assigned_staff:
             staff_name = instance.assigned_staff.full_name
             message = (

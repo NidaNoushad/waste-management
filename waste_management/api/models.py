@@ -141,7 +141,7 @@ class WasteRequestStatus(models.Model):
     area = models.ForeignKey("staff.Area", on_delete=models.SET_NULL, null=True, blank=True)
     assigned_staff = models.ForeignKey("staff.Staff", on_delete=models.SET_NULL, null=True, blank=True)
     
-    # ✅ new field
+   
     is_paid = models.BooleanField(default=False)
 
     class Meta:
@@ -284,16 +284,6 @@ class WasteRequestCancelled(models.Model):
         return f"{self.waste_request.order_id} - {self.pickup_date} - Cancelled by {self.cancelled_by}"
 
 
-class Invoice(models.Model):
-    related_request = models.ForeignKey("WasteRequest", on_delete=models.CASCADE, related_name="invoices")
-    related_update = models.ForeignKey("WasteRequestUserUpdate", on_delete=models.SET_NULL, blank=True, null=True)
-    invoice_file = models.FileField(upload_to="invoices/")
-    created_at = models.DateTimeField(auto_now_add=True)
-
-
-
-
-
 
 class Feedback(models.Model):
     waste_request = models.ForeignKey(WasteRequest, on_delete=models.CASCADE, related_name="feedbacks")
@@ -333,6 +323,11 @@ class ContactMessage(models.Model):
 
 
 
+class Invoice(models.Model):
+    related_request = models.ForeignKey("WasteRequest", on_delete=models.CASCADE, related_name="invoices")
+    related_update = models.ForeignKey("WasteRequestUserUpdate", on_delete=models.SET_NULL, blank=True, null=True)
+    invoice_file = models.FileField(upload_to="invoices/")
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 
@@ -341,45 +336,29 @@ class ContactMessage(models.Model):
 
 
 
-
-class Notification(models.Model):
-    NOTIFICATION_TYPES = [
-        ('email', 'Email'),
-        ('sms', 'SMS'),
-    ]
+# class Notification(models.Model):
+#     NOTIFICATION_TYPES = [
+#         ('email', 'Email'),
+#         ('sms', 'SMS'),
+#     ]
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    message = models.TextField()
-    notification_type = models.CharField(max_length=10, choices=NOTIFICATION_TYPES)
-    send_at = models.DateTimeField(auto_now_add=True)
-    def create_notification(user, message, notif_type="email"):
+#     user = models.ForeignKey(User, on_delete=models.CASCADE)
+#     message = models.TextField()
+#     notification_type = models.CharField(max_length=10, choices=NOTIFICATION_TYPES)
+#     send_at = models.DateTimeField(auto_now_add=True)
+#     def create_notification(user, message, notif_type="email"):
    
-        Notification.objects.create(
-        user=user,
-        message=message,
-        notification_type=notif_type
-    )
+#         Notification.objects.create(
+#         user=user,
+#         message=message,
+#         notification_type=notif_type
+#     )
 
-    def __str__(self):
-        return f"{self.notification_type.upper()} to {self.user.username} at {self.send_at}"
+#     def __str__(self):
+#         return f"{self.notification_type.upper()} to {self.user.username} at {self.send_at}"
 
 
-class Payment(models.Model):
-    PAYMENT_STATUS_CHOICES = [
-        ('Paid', 'Paid'),
-        ('Pending', 'Pending'),
-        ('Failed', 'Failed'),
-        ('Refunded', 'Refunded'),
-    ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    request = models.ForeignKey('WasteRequest', on_delete=models.CASCADE)
-    amount_paid = models.DecimalField(max_digits=8, decimal_places=2)
-    payment_date = models.DateTimeField(auto_now_add=True)
-    payment_status = models.CharField(max_length=10, choices=PAYMENT_STATUS_CHOICES, default='Pending')
-
-    def __str__(self):
-        return f"Payment #{self.id} - {self.payment_status} - ₹{self.amount_paid}"
 
 
 

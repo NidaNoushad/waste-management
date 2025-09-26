@@ -221,7 +221,7 @@ class DashboardSummaryAPIView(APIView):
         revenue = completed_paid - full_refunds + (partial_adjustments or 0)
 
 
-         # 5️⃣ Payment method split (Paid only)
+         #  Payment method split (Paid only)
         upi_revenue = WasteRequest.objects.filter(payment_method="UPI", payment_status="Paid").aggregate(
             total=Sum("final_amount")
         )["total"] or 0

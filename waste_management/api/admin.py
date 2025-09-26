@@ -9,7 +9,7 @@ from import_export.admin import ImportExportModelAdmin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 # from .serializers import WasteRequestSerializer
 from staff.models import Staff
-from .models import WasteRequest, Notification,  City, PickupDate, WasteRequestStatus,  WasteRequestUserUpdate, WasteRequestCancelled,Invoice,Feedback,ContactMessage,UserProfile
+from .models import WasteRequest,  City, PickupDate, WasteRequestStatus,  WasteRequestUserUpdate, WasteRequestCancelled,Feedback,ContactMessage,UserProfile
 
 
 
@@ -65,11 +65,11 @@ admin.site.register(User, CustomUserAdmin)
 
 
 
-class InvoiceInline(admin.TabularInline):  # or StackedInline if you want full form style
-    model = Invoice
-    extra = 1   # how many empty invoice forms to show
-    fields = ("related_update", "invoice_file", "created_at")
-    readonly_fields = ("created_at",)
+# class InvoiceInline(admin.TabularInline):  # or StackedInline if you want full form style
+#     model = Invoice
+#     extra = 1   # how many empty invoice forms to show
+#     fields = ("related_update", "invoice_file", "created_at")
+#     readonly_fields = ("created_at",)
 
 class WasteRequestCancelledInline(admin.TabularInline):
 
@@ -175,7 +175,7 @@ class WasteRequestStatusInline(admin.TabularInline):
 class WasteRequestAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     list_display = ['order_id', 'name', 'user', 'category', 'waste_type', 'has_user_updates', 'updated_dates', 'show_per_date_breakdown']
     search_fields = ['order_id', 'name', 'email', 'phone']
-    inlines = [WasteRequestStatusInline, WasteRequestUserUpdateInline,  WasteRequestCancelledInline, InvoiceInline]
+    inlines = [WasteRequestStatusInline, WasteRequestUserUpdateInline,  WasteRequestCancelledInline]
 
     # --- Step 3: Flag if there are any user updates ---
     def has_user_updates(self, obj):
@@ -293,18 +293,18 @@ class WasteRequestAdmin(ImportExportModelAdmin,admin.ModelAdmin):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
-@admin.register(Invoice)
-class InvoiceAdmin(admin.ModelAdmin):
-    list_display = ("id", "related_request", "related_update", "invoice_file", "created_at")
-    list_filter = ("created_at", "related_request")
-    search_fields = ("related_request__id",)
+# @admin.register(Invoice)
+# class InvoiceAdmin(admin.ModelAdmin):
+#     list_display = ("id", "related_request", "related_update", "invoice_file", "created_at")
+#     list_filter = ("created_at", "related_request")
+#     search_fields = ("related_request__id",)
 
 
 
 
 admin.site.register(WasteRequestStatus)
 admin.site.register(WasteRequest, WasteRequestAdmin)
-admin.site.register(Notification)
+# admin.site.register(Notification)
 
 
 admin.site.register(City)

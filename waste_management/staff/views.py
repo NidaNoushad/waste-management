@@ -71,7 +71,7 @@ class StaffPickupViewSet(viewsets.ViewSet):
                 if not status_obj:
                     continue  # skip pickups not assigned to this staff
 
-            # ✅ Check for user update
+            # Check for user update
                 user_update = WasteRequestUserUpdate.objects.filter(
                     waste_request=req, pickup_date=d
                 ).first()

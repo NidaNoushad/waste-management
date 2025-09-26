@@ -8,7 +8,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 
 # import viewsets
-from .views import WasteRequestViewSet, NotificationViewSet,   CityViewSet, PickupDateViewSet, PickupDateByCityView, RegisterView, WasteRequestStatusViewSet, WasteRequestPickupViewSet, InvoiceViewSet, WasteRequestUserUpdateViewSet,CalculatePriceView,CancelWasteRequestStatusView,InvoiceUploadView,FeedbackAPIView, ContactMessageView,UserProfileView,ChangePasswordView,PasswordResetRequestView, PasswordResetConfirmView, CreateRazorpayOrderView, VerifyPaymentView,UserDashboardAPIView, MyTokenObtainPairView,StaffTokenObtainPairView,AdminTokenObtainPairView
+from .views import WasteRequestViewSet,   CityViewSet, PickupDateViewSet, PickupDateByCityView, RegisterView, WasteRequestStatusViewSet, WasteRequestPickupViewSet, InvoiceViewSet, WasteRequestUserUpdateViewSet,CalculatePriceView,CancelWasteRequestStatusView,InvoiceUploadView,FeedbackAPIView, ContactMessageView,UserProfileView,ChangePasswordView,PasswordResetRequestView, PasswordResetConfirmView, CreateRazorpayOrderView, VerifyPaymentView,UserDashboardAPIView, MyTokenObtainPairView,StaffTokenObtainPairView,AdminTokenObtainPairView
 
 router = DefaultRouter()
 
@@ -18,7 +18,7 @@ router.register(r'waste-requests', WasteRequestViewSet)
 router.register(r'waste-request-status', WasteRequestStatusViewSet)
 router.register(r'waste-request-pickups', WasteRequestPickupViewSet, basename='waste-request-pickups')
 router.register(r'user-update-request', WasteRequestUserUpdateViewSet, basename='user-update-request')
-router.register(r'notifications', NotificationViewSet)
+# router.register(r'notifications', NotificationViewSet)
 
 router.register(r'cities', CityViewSet)
 router.register(r'pickupdates', PickupDateViewSet)
@@ -30,7 +30,7 @@ router.register(r'invoices', InvoiceViewSet)
 
 
 # staff
-# router.register(r'staff', StaffTaskViewSet, basename='staff-tasks')
+
 
 router.register(r'staff/pickups', StaffPickupViewSet, basename='staff-pickups')
 router.register(r'stafflist', StaffViewSet, basename='staff')
@@ -43,10 +43,10 @@ urlpatterns = [
    path("admin/login/", AdminTokenObtainPairView.as_view(), name="admin_login"),
 
     # 🔹 Staff login (username only)
-    # path('staff/login/', StaffLoginView.as_view(), name='staff_login'),
+
   path('staff/login/', StaffTokenObtainPairView.as_view(), name='staff_login'),
   
-    # path("customer/login/", CustomerLoginView.as_view(), name="customer_login"),
+  
     path('api/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('cities/<int:city_id>/pickupdates/', PickupDateByCityView.as_view(), name='pickup-dates-by-city' ),
@@ -67,5 +67,3 @@ urlpatterns = [
 path("user-dashboard/", UserDashboardAPIView.as_view(), name="user-dashboard"),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
