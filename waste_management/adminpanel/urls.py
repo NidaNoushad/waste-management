@@ -1,6 +1,6 @@
 # adminpanel/urls.py
 from django.urls import path
-from .views import AdminUserListView,AdminWasteRequestListView,AdminUserUpdateListView,AdminUserCancelledListView,AdminUserCancelRequestUpdateView,AdminUserProfileView,ContactMessageListView,ContactMessageDetailView,PickupDateCreateView,CreateStaffAPIView,StaffAssignAreasAPIView,AreaListAPIView,DashboardSummaryAPIView,AdminPickupAPIView,DashboardTrendsAPIView
+from .views import AdminUserListView,AdminWasteRequestListView,AdminUserUpdateListView,AdminUserCancelledListView,AdminUserCancelRequestUpdateView,AdminUserProfileView,ContactMessageListView,ContactMessageDetailView,PickupDateCreateView,CreateStaffAPIView,StaffAssignAreasAPIView,AreaListAPIView,DashboardSummaryAPIView,AdminPickupAPIView,DashboardTrendsAPIView,StaffPerformanceAPIView
 urlpatterns = [
     path('users/', AdminUserListView.as_view(), name='admin-user-list'),
     path('users/<int:user_id>/waste-requests/', AdminWasteRequestListView.as_view(), name='admin-user-waste-requests'),
@@ -25,6 +25,7 @@ path('areas/', AreaListAPIView.as_view(), name='area-list'),
 path("dashboard/summary/", DashboardSummaryAPIView.as_view(), name="dashboard-summary"),
 path('pickups/today/', AdminPickupAPIView.as_view(), name='admin-today-pickups'),
  path("dashboard/trends/", DashboardTrendsAPIView.as_view(), name="dashboard-trends"),
+ path('staff-performance/', StaffPerformanceAPIView.as_view(), name='staff-performance'),
 
     
 ]

@@ -3,6 +3,7 @@ from rest_framework import serializers
 from api.models import UserProfile
 from staff.models import Staff,Area
 from django.contrib.auth.models import User
+from staff.models import Staff
 
 class AdminUserSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username')  # from User model
@@ -84,3 +85,16 @@ class StaffAssignAreasSerializer(serializers.Serializer):
         instance.areas.set(areas)
         instance.save()
         return instance
+
+
+class StaffPerformanceSerializer(serializers.Serializer):
+    full_name = serializers.CharField()
+    email = serializers.EmailField()
+    phone = serializers.CharField()
+    total_pickups = serializers.IntegerField()
+    completed = serializers.IntegerField()
+    assigned = serializers.IntegerField()
+    on_the_way = serializers.IntegerField()
+    cancelled = serializers.IntegerField()
+    cod_to_collect = serializers.FloatField()
+    collected = serializers.FloatField()

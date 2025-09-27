@@ -22,7 +22,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from api.models import UserProfile,WasteRequest,WasteRequestUserUpdate,WasteRequestCancelled,ContactMessage,City,PickupDate,Area,WasteRequestStatus
 from api.serializers import  WasteRequestUserUpdateSerializer,WasteRequestCancelledSerializer,UserProfileSerializer,ContactMessageSerializer,WasteRequestSerializer
-from .serializers import AdminUserSerializer,StaffCreateSerializer,StaffAssignAreasSerializer
+from .serializers import AdminUserSerializer,StaffCreateSerializer,StaffAssignAreasSerializer,StaffPerformanceSerializer
 from staff.serializers import AreaSerializer
 from staff.models import Staff
 
@@ -233,43 +233,6 @@ class DashboardSummaryAPIView(APIView):
         )["total"] or 0
 
 
-# Count Economy vs Bulk pickups (excluding cancelled)
-#         waste_counts = (
-#             WasteRequestStatus.objects.exclude(status="Cancelled")
-#             .select_related("waste_request")
-#     # .values("waste_request__waste_type")
-#     # .annotate(count=Count("id"))
-#         )
-
-#         waste_type_data = [
-#     {"name": "economy", "count": 0},
-#     {"name": "bulk", "count": 0},
-# ]
-
-
-#         for status_obj in waste_counts:
-#             req = status_obj.waste_request
-#     # Look for a user update for this pickup date
-#             user_update = WasteRequestUserUpdate.objects.filter(
-#         waste_request=req,
-#         pickup_date=status_obj.pickup_date
-#     ).first()
-    
-#     # Use updated waste_type if exists, otherwise original
-#             wt = (user_update.waste_type if user_update and user_update.waste_type else req.waste_type).lower()
-    
-#             if wt == "economy":
-#                 waste_type_data[0]["count"] += 1
-#             elif wt == "bulk":
-#                 waste_type_data[1]["count"] += 1
-        # for item in waste_counts:
-        #     wt = item["waste_request__waste_type"]
-        #     if wt == "economy":
-        #         waste_type_data[0]["count"] = item["count"]
-        #     elif wt == "bulk":
-        #         waste_type_data[1]["count"] = item["count"]
-
-         # Get all non-cancelled statuses
         waste_counts = WasteRequestStatus.objects.exclude(status="Cancelled").select_related("waste_request")
 
         waste_type_data = {"economy": 0, "bulk": 0}
@@ -418,3 +381,44 @@ class DashboardTrendsAPIView(APIView):
                 data[day]["pending"] += row["count"]
 
         return Response(list(data.values()))
+
+
+class StaffPerformanceAPIView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        data = []
+        staff_qs = Staff.objects.all()
+        
+        for staff in staff_qs:
+            qs = WasteRequestStatus.objects.filter(assigned_staff=staff)
+            total_pickups = qs.count()
+            completed = qs.filter(status="Complete").count()
+            assigned = qs.filter(status="Assigned").count()
+            on_the_way = qs.filter(status="On the Way").count()
+            cancelled = qs.filter(status="Cancelled").count()
+            
+            cod_to_collect = sum(
+                (s.waste_request.final_amount or 0) / max(len(s.waste_request.pickup_dates or []), 1)
+                for s in qs if s.waste_request.payment_method == "Cash on Pickup"
+            )
+            collected = sum(
+                (s.waste_request.final_amount or 0) / max(len(s.waste_request.pickup_dates or []), 1)
+                for s in qs if s.is_paid
+            )
+            
+            data.append({
+                "full_name": staff.full_name,
+                "email": staff.email,
+                "phone": staff.phone,
+                "total_pickups": total_pickups,
+                "completed": completed,
+                "assigned": assigned,
+                "on_the_way": on_the_way,
+                "cancelled": cancelled,
+                "cod_to_collect": cod_to_collect,
+                "collected": collected,
+            })
+        
+        serializer = StaffPerformanceSerializer(data, many=True)
+        return Response(serializer.data)
