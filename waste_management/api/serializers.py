@@ -66,9 +66,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ['email', 'password', 'password2', 'full_name', 'phone_number']
 
     def validate(self, attrs):
+        phone = attrs['phone_number'].strip()
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password2": "Passwords do not match."})
-        if not attrs['phone_number'].isdigit() or len(attrs['phone_number']) != 10:
+        if not phone.isdigit() or len(phone) != 10:
             raise serializers.ValidationError({"phone_number": "Phone number must be 10 digits"})
         return attrs
 
@@ -84,7 +85,11 @@ class RegisterSerializer(serializers.ModelSerializer):
             password=validated_data['password']
         )
 
-        UserProfile.objects.create(user=user, full_name=full_name, phone_number=phone_number)
+        # UserProfile.objects.create(user=user, full_name=full_name, phone_number=phone_number)
+        profile = user.profile
+        profile.full_name = full_name
+        profile.phone_number = phone_number
+        profile.save()
         return user
 
     def to_representation(self, instance):

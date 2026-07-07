@@ -1,4 +1,19 @@
 
+# # Python/Django
+# *.pyc
+# __pycache__/
+# db.sqlite3
+# .env
+# *.log
+# /staticfiles/
+# media/
+
+# # Node/React
+# node_modules/
+# build/
+# .env
+
+
 # Python/Django
 *.pyc
 __pycache__/
@@ -7,6 +22,8 @@ db.sqlite3
 *.log
 /staticfiles/
 media/
+venv/
+waste_management/venv/
 
 # Node/React
 node_modules/
