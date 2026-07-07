@@ -26,12 +26,16 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure--+1071=83y@&prh&b5kyygw83n+@%0auy#)%^50$ftk3y&3(7%'
+SECRET_KEY = config("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
+DEBUG = False
+# ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "waste-management.onrender.com",
+    "localhost",
+    "127.0.0.1",
+]
 
 
 # Application definition
@@ -172,13 +176,13 @@ SIMPLE_JWT = {
 
 LOGIN_REDIRECT_URL = '/api/'
 
-DEBUG=True
+# DEBUG=True
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = '11nids11@gmail.com'          # replace with your Gmail
-EMAIL_HOST_PASSWORD = 'pyitrtdslmtofnyf'        # Gmail app password
+EMAIL_HOST_USER = config("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")       
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
@@ -198,6 +202,5 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 
 
 
-
-RAZORPAY_KEY_ID="rzp_test_RAONx9ceY2LHYG"
-RAZORPAY_KEY_SECRET="rF2wsUN2L5zVwwSvDIW8YS6l"
+RAZORPAY_KEY_ID = config("RAZORPAY_KEY_ID")
+RAZORPAY_KEY_SECRET = config("RAZORPAY_KEY_SECRET")
