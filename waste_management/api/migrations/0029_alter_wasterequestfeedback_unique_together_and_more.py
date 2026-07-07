@@ -23,12 +23,12 @@ class Migration(migrations.Migration):
             name='waste_request',
             field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.CASCADE, related_name='feedbacks', to='api.wasterequest'),
         ),
-        migrations.RemoveField(
-            model_name='wasterequestfeedback',
-            name='pickup',
-        ),
         migrations.AlterUniqueTogether(
             name='wasterequestfeedback',
             unique_together={('waste_request', 'pickup_date', 'user')},
+        ),
+        migrations.RemoveField(
+            model_name='wasterequestfeedback',
+            name='pickup',
         ),
     ]
