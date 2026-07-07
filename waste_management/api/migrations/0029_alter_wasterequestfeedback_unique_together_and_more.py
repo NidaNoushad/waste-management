@@ -13,10 +13,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterUniqueTogether(
-            name='wasterequestfeedback',
-            unique_together={('waste_request', 'pickup_date', 'user')},
-        ),
         migrations.AddField(
             model_name='wasterequestfeedback',
             name='pickup_date',
@@ -30,5 +26,9 @@ class Migration(migrations.Migration):
         migrations.RemoveField(
             model_name='wasterequestfeedback',
             name='pickup',
+        ),
+        migrations.AlterUniqueTogether(
+            name='wasterequestfeedback',
+            unique_together={('waste_request', 'pickup_date', 'user')},
         ),
     ]
