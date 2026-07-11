@@ -1,0 +1,15 @@
+/* Scrollable Bootstrap select */
+.scrollable-select select {
+  max-height: 200px; /* adjust as needed */
+  overflow-y: auto;
+}
+
+/* Optional: smooth scrollbar for webkit browsers */
+.scrollable-select select::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollable-select select::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 128, 0, 0.5); /* green shade */
+  border-radius: 3px;
+}

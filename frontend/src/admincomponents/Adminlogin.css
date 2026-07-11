@@ -1,0 +1,58 @@
+
+.admin-login-page {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.left-panel {
+
+  color: #fff;
+  flex-direction: column;
+  padding: 2rem;
+  text-align: center;
+  position: relative;
+}
+
+.left-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 100, 0, 0.7); /* dark green overlay */
+}
+
+.left-panel > div {
+  position: relative;
+  z-index: 2;
+}
+
+.logo {
+  font-size: 3rem;
+  font-weight: bold;
+}
+
+.tagline {
+  font-size: 1.1rem;
+  opacity: 0.95;
+}
+
+.right-panel {
+  background: #fff;
+  padding: 2rem;
+}
+
+.login-box {
+  width: 100%;
+  max-width: 350px;
+}
+
+.btn-login {
+  background-color: #006400;
+  border: none;
+}
+
+.btn-login:hover {
+  background-color: #004d00;
+}

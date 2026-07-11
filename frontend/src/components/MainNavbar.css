@@ -1,0 +1,77 @@
+.hero-slide {
+  background-size: cover;
+  background-position: center;
+  height: 90vh;
+  position: relative;
+}
+
+.custom-btn {
+  background-color: #6dcf81;
+  border-radius: 10px solid;
+  color: white;
+  padding: 10px 20px;
+  font-weight: bold;
+
+}
+
+.custom-btn:hover {
+
+  background-color: #69b31d;
+  transition: background-color 0.9s ease;
+}
+.custom-hover{
+  color: #014421;
+  font-weight: 400;
+}
+.custom-hover:hover{
+  color:#69b31d !important;
+  transform: scale(1.05);
+  transition: all 0.3s ease-in-out;
+}
+.offcanvas-end{
+  transition: transform 0.4s ease-in-out;
+}
+
+.hover-btn:hover{
+  background-color: #123018 !important;
+}
+
+.custom-dropdown > .nav-link::after {
+  color: #014421 !important;
+}
+
+.custom-dropdown .dropdown-menu {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s ease-in-out;
+  display: block !important;
+  visibility: hidden;
+  position: absolute;
+  
+}
+
+.custom-dropdown:hover .dropdown-menu {
+  opacity: 1;
+  transform: translateY(0px);
+  visibility: visible;
+  
+}
+
+.custom-dropdown .nav-link,
+.custom-dropdown .dropdown-toggle {
+  color: white !important;
+}
+
+.offcanvas {
+  transition: transform 0.4s ease-in-out;
+}
+
+.h-btn{
+  background-color: transparent !important;
+  border-radius: 50px !important;
+  border-color: white !important;
+}
+
+.h-btn:hover{
+  background-color: #69b31d !important;
+}

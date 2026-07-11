@@ -1,0 +1,61 @@
+.dashboard-bg {
+  background: linear-gradient(135deg, #e0f2ff, #e0e7ff, #f5f3ff);
+}
+
+/* Fade-in animation */
+.fade-in-up {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.7s ease;
+}
+
+.fade-in-up.loaded {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Hover scale effect for cards */
+.card-hover {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: scale(1.05);
+  box-shadow: 0 15px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Icon circle */
+.icon-circle {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.icon {
+  width: 24px;
+  height: 24px;
+}
+
+/* Notifications hover */
+.notification-item:hover {
+  background-color: #f8f9fa;
+  transition: background-color 0.2s;
+}
+
+/* Scrollbar for notifications */
+.notification-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.notification-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.notification-list::-webkit-scrollbar-thumb {
+  background-color: #ced4da;
+  border-radius: 10px;
+}

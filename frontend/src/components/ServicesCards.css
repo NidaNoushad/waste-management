@@ -1,0 +1,104 @@
+ .no-gutters{
+  margin-right: 0;
+  margin-left: 0;
+ }
+
+ .no-gutters > .col{
+  padding-right: 0;
+  padding-left: 0;
+ }
+ 
+ 
+ .service-card {
+  /* height: 300px; */
+  height: clamp(220px, 30vw, 300px);
+  width: 100%;
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.service-card img{
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
+.service-card:hover {
+  transform: scale(1.02);
+}
+
+.service-card .overlay {
+  /* background-color: rgba(0, 128, 0, 0.9);  */
+  background-color: #69b31d;
+  color: white;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  /* padding: 20px; */
+  opacity: 0;
+  visibility: hidden;
+  transition: bottom 0.5s ease, visibility 0.5s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  z-index: 3;
+
+}
+
+.service-card:hover .overlay {
+  /* bottom: 0 !important; */
+  opacity: 1;
+  visibility: visible;
+}
+
+.desc-text {
+  font-size: clamp(14px, 2vw, 16px);
+  margin-bottom: 10px;
+}
+
+.view-btn {
+  border: 2px solid white;
+  background: transparent;
+  color: white;
+  padding: 6px 16px;
+  border-radius: 50px;
+  transition: all 0.3s ease;
+}
+
+.view-btn:hover {
+  background-color: white !important;
+  color: green !important;
+}
+
+/* ✅ Always-visible title over image */
+.service-card h5 {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 1.2rem;
+  font-weight: bold;
+  z-index: 2;
+  pointer-events: none;
+  text-shadow: 1px 1px 5px rgba(0,0,0,0.6);
+  transition: opacity 0.4s ease;
+}
+
+.service-card:hover h5 {
+  opacity:0;
+}
+
+
+.service-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 100, 0, 0.3); 
+  z-index: 1;
+}

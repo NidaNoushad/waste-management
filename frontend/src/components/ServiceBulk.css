@@ -1,0 +1,162 @@
+/* sec1 */
+.ewaste-hero {
+  position: relative;
+  width: 100%;
+  min-height: 90vh; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  padding: 0 20px; 
+  text-align: center;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%; /* overlay covers full height */
+  background: rgba(10, 40, 20, 0.6); /* dark green transparent overlay */
+  z-index: 1;
+}
+
+.content {
+  position: relative;
+  z-index: 2;
+  max-width: 800px;
+  margin: auto;
+}
+
+.hero-title {
+  font-size: 3rem;
+  font-weight: bold;
+}
+
+.hero-subtitle {
+  font-size: 1.5rem;
+  margin-top: 10px;
+}
+
+.breadcrumb {
+  font-size: 1rem;
+  margin-top: 15px;
+  opacity: 0.9;
+
+
+}
+.breadcrumb-link{
+  color: #fff;
+  text-decoration: none;
+  font-weight: 500;
+}
+.breadcrumb-link:hover{
+  text-decoration: none;
+  color: #90ee90;
+}
+
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 2rem;
+  }
+  .hero-subtitle {
+    font-size: 1.2rem;
+  }
+}
+
+
+/* cheking */
+
+:root{
+  --brand-green: #1a4d2e;
+  --accent: #1db954;
+  }
+  
+  
+  .bulk-root{font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;}
+  
+  
+  .site-header{background: #fff;}
+  .navbar-brand .brand-logo{background:var(--brand-green);color:#fff;width:44px;height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700}
+  .navbar-brand .brand-sub{font-size:11px;color:#6c757d}
+  
+  
+  .hero-section{background: linear-gradient(90deg, #f7fbf8 0%, #ffffff 100%);}
+  .hero-card img{max-height:260px;object-fit:cover}
+  .hero-stats li{margin-top:8px;color:#333}
+  
+  
+  .feature-box{min-height:110px}
+  
+  
+  .bg-primary{background:var(--brand-green) !important}
+  .btn-primary{background:var(--brand-green);border-color:var(--brand-green)}
+  .btn-outline-primary{border-color:var(--brand-green);color:var(--brand-green)}
+  
+  
+  .footer-section{background:#0f1720}
+  
+  
+  /* Mobile nav helper */
+  #mainNav{transition: all .25s ease}
+  #mainNav.show-mobile{display:block !important}
+  @media(min-width:992px){
+  #mainNav{display:block !important}
+  #mobileMenuBtn{display:none}
+  }
+  
+  
+  /* Responsive tweaks */
+  @media(max-width:768px){
+  .hero-card img{max-height:180px}
+  }
+  
+  
+  /* small utility */
+  .text-start{text-align:left}
+
+
+
+
+  /* Pricing.css */
+.custom-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 1rem;
+  background: #3d3c3d; /* outer card color */
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.custom-card-inner {
+  position: absolute;
+  inset: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  text-align: center;
+  background: #323132;
+  border-radius: 1rem;
+  z-index: 1;
+  opacity: 0.95;
+  padding: 1.5rem;
+}
+
+.custom-card-glow {
+  position: absolute;
+  width: 220px;
+  height: 180px;
+  background: #ffffff;
+  filter: blur(50px);
+  left: -50%;
+  top: -50%;
+  z-index: 0;
+}
+
+.text-muted{
+  font: 500;
+  color: #dae144 !important;
+}

@@ -1,0 +1,39 @@
+.login-container {
+  
+  background-color: #dfe9e7; 
+  width: 100%;
+}
+
+input:focus, button:focus {
+  box-shadow: 0 0 5px #28a745;
+  border-color: #28a745;
+  
+}
+
+
+form a {
+  color: #69b31d;
+}
+
+
+.login-box {
+  background-color: #fff !important; 
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  margin: 40px auto;
+  max-width: 450px; 
+}
+
+.login-box .form-control {
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 15px;
+}
+
+.login-box .btn {
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 16px;
+}
+

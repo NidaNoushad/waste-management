@@ -1,0 +1,70 @@
+.contact-banner-wrapper {
+  /* background-color: #fff; */
+  background-color: transparent;
+  position: relative;
+  z-index: 2;
+
+  padding: 0;
+  margin: 0;
+  z-index: 2;
+}
+
+.contact-banner-box {
+  background-attachment: fixed;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  min-height: 280px;
+
+  overflow: hidden;
+  padding: 30px;
+  position: relative;
+
+  z-index: 3;
+
+  margin-top: -80px;
+}
+
+
+.contact-banner-box .overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0, 0.5);
+  z-index: 1;
+}
+
+
+.contact-banner-content {
+  color: #fff !important;
+  font-size: 1.8rem;
+  font-weight: 600;
+  max-width: 60%;
+  z-index: 2;
+}
+
+.contact-banner-call-box {
+  background-color: #7BC043;
+  color: #fff;
+  padding: 25px;
+  text-align: center;
+  border-radius: 6px;
+  min-width: 180px;
+  z-index: 2;
+  cursor: pointer !important;
+}
+
+.contact-banner-call-box:hover {
+  background-color: #fff;
+  color: #69b31d;
+}
+
+.contact-banner-call-box .phone-icon {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}

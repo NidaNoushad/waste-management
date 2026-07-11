@@ -1,0 +1,37 @@
+.auto-scroll-banner {
+  /* background-color: #064420;  */
+  background-color:#69b31d;
+  color: white;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 10px 0;
+}
+
+.scroll-track {
+  display: inline-block;
+  animation: scroll-left 15s linear infinite;
+}
+
+.scroll-track span {
+  display: inline-block;
+  margin-right: 50px;
+  font-size: clamp(14px, 2.5vw, 500px); /* Responsive font size */
+  font-weight: 500;
+}
+
+/* Animation for scrolling */
+@keyframes scroll-left {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+
+@media (max-width: 480px) {
+  .scroll-track span {
+    margin-right: 30px;
+  }
+}

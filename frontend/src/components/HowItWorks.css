@@ -1,0 +1,34 @@
+.how-it-works-section {
+  background: #f8f9fa; /* light background */
+}
+
+.section-title {
+  font-weight: 700;
+  color: #1a4d2e;
+}
+
+.step-card {
+  background-color: white;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 128, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  height: 100%;
+}
+
+.step-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 20px rgba(0, 128, 0, 0.2);
+}
+
+.icon {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+@media (max-width: 768px) {
+  .step-card {
+    text-align: center;
+  }
+}

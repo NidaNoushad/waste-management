@@ -1,0 +1,226 @@
+/* sec1 */
+.ewaste-hero {
+  position: relative;
+  width: 100%;
+  min-height: 90vh; /* Taller hero so overlay covers properly */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  padding: 0 20px; /* padding to stop text from touching borders */
+  text-align: center;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%; /* overlay covers full height */
+  background: rgba(10, 40, 20, 0.6); /* dark green transparent overlay */
+  z-index: 1;
+}
+
+.content {
+  position: relative;
+  z-index: 2;
+  max-width: 800px; /* keeps text readable in center */
+  margin: auto;
+}
+
+.hero-title {
+  font-size: 3rem;
+  font-weight: bold;
+}
+
+.hero-subtitle {
+  font-size: 1.5rem;
+  margin-top: 10px;
+}
+
+.breadcrumb {
+  font-size: 1rem;
+  margin-top: 15px;
+  opacity: 0.9;
+
+
+}
+.breadcrumb-link{
+  color: #fff;
+  text-decoration: none;
+  font-weight: 500;
+}
+.breadcrumb-link:hover{
+  text-decoration: none;
+  color: #90ee90;
+}
+
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 2rem;
+  }
+  .hero-subtitle {
+    font-size: 1.2rem;
+  }
+}
+
+
+
+
+
+/* ServiceSchedule.css */
+
+#service-schedule {
+  padding: 4rem 0;
+  background-color: #f9f9f9;
+}
+
+.service-schedule-heading {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.service-schedule-heading h2 {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin-bottom: .5rem;
+}
+
+.service-schedule-heading p.subheading {
+  font-size: 1.25rem;
+  color: #666;
+}
+
+.service-schedule-content {
+  max-width: 700px;
+  margin: 0 auto 2rem auto;
+  font-size: 1rem;
+  color: #444;
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* Cards Row */
+.service-cards-row .card {
+  border: none;
+  background: #fff;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  transition: transform .3s, box-shadow .3s;
+  height: 100%;
+}
+
+.service-cards-row .card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+.service-cards-row .card-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.service-cards-row .card-text {
+  font-size: 1rem;
+  color: #555;
+}
+
+.service-icon {
+  font-size: 2.5rem;
+  color: #28a745; /* or some accent color */
+  margin-bottom: 1rem;
+}
+
+
+/* last 2 sec */
+.help-section {
+  background: #f8f9fa;
+}
+
+.help-section h3 {
+  color: #1a4d2e;
+  font-weight: 600;
+}
+
+.image-content-section h3 {
+  color: #1a4d2e;
+  font-weight: 600;
+  margin-bottom: 15px;
+}
+
+.image-content-section ul li {
+  margin-bottom: 8px;
+  font-size: 16px;
+  color: #333;
+}
+
+
+
+
+
+/* che2 */
+
+/* Card Container Stack Effect */
+.stack {
+  position: relative;
+  transition: 0.25s ease;
+}
+
+/* Card Styling */
+.services-card {
+  border: 4px solid #1a4d2e;
+  background-color: #fff;
+  position: relative;
+  transition: 0.15s ease;
+  cursor: pointer;
+  padding: 20px 10px;
+  z-index: 2;
+}
+
+/* Always show stacked effect */
+.services-card::before,
+.services-card::after {
+  content: "";
+  display: block;
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  border: 4px solid #1a4d2e;
+  background-color: #fff;
+  transform-origin: center center;
+  z-index: -1;
+  transition: 0.25s ease;
+  top: 0;
+  left: 0;
+}
+
+/* Base stack look (before hover) */
+.services-card::before {
+  transform: translateY(-4%) rotate(-6deg);
+}
+
+.services-card::after {
+  transform: translateY(4%) rotate(6deg);
+}
+
+/* On hover → slight animation */
+.stack:hover {
+  transform: rotate(3deg);
+}
+
+.stack:hover .service-card::before {
+  transform: translateY(-6%) rotate(-8deg);
+}
+
+.stack:hover .service-card::after {
+  transform: translateY(6%) rotate(8deg);
+}
+
+/* Icon Styling */
+.services-icon {
+  font-size: 2rem;
+  color: #1a4d2e;
+  margin-bottom: 15px;
+}
+

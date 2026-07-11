@@ -1,0 +1,150 @@
+.about-section {
+  min-height: 40vh; /* smaller height */
+  background: #fff ;
+  background-size: cover;
+  background-position: center;
+  color: #1a1a1a;
+  position: relative;
+  padding: 60px 20px; /* gives spacing top-bottom */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+}
+
+/* Logo text */
+.logo-text {
+  font-size: 24px;
+  font-weight: bold;
+  color: #1a4d2e;
+  margin-bottom: 20px;
+}
+
+/* Title */
+.about-title {
+  font-size: 36px;
+  font-weight: 700;
+  color: #000;
+  margin-top: 10px;
+}
+
+/* Breadcrumb */
+.breadcrumb-text {
+  font-size: 16px;
+  color: black;
+  margin-top: 8px;
+  z-index: 1;
+}
+
+
+/* Responsive */
+@media (max-width: 768px) {
+  .about-title {
+    font-size: 28px;
+  }
+  .logo-text {
+    font-size: 20px;
+  }
+}
+
+/* sec2 */
+
+.about-content-section {
+  background-color: #1a4d2e; /* dark green background */
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+}
+
+.welcome-title {
+  font-size: 36px;
+  font-weight: 700;
+}
+
+.highlight {
+  color: #ffb400; /* orange highlight like in your screenshot */
+}
+
+.about-content-section p {
+  font-size: 16px;
+  line-height: 1.8;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+
+/* sec3 */
+.mission-vision-section {
+  background-color: #1a4d2e;
+}
+
+.mission-card {
+  background: rgba(0, 0, 0, 0.7); /* dark overlay */
+  border: none;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: transform 0.3s ease-in-out;
+}
+
+.mission-card:hover {
+  transform: translateY(-10px);
+}
+
+.mission-card img {
+  height: 220px;
+  object-fit: cover;
+}
+
+.card-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 15px;
+  color: #1a4d2e;
+}
+
+.card-text {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #1a4d2e;
+}
+
+
+/* faq */
+.faq-section {
+  background: #fff;
+  color: #333;
+}
+
+.faq-card {
+  background: #fff;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease-in-out;
+}
+
+.faq-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+}
+
+.faq-card.active {
+  border-left: 5px solid #1a4d2e; /* GoTrash green */
+}
+
+.faq-question {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.faq-icon {
+  font-size: 1.5rem;
+  color: #1a4d2e;
+  font-weight: bold;
+}
+
+.faq-answer {
+  font-size: 0.95rem;
+  color: #555;
+  line-height: 1.6;
+}

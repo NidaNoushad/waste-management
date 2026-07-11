@@ -1,0 +1,12 @@
+.bg-dark-green {
+  background-color: #014421;
+  color: white;
+  font-size: 14px;
+}
+
+.top-bar {
+  margin: 0 !important;
+  padding-top: 4px;   /* smaller padding */
+  padding-bottom: 4px; 
+  line-height: 1.2;
+}

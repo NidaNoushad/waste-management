@@ -1,0 +1,94 @@
+.sidebar-container {
+  background-color: #69b31d;
+  color: white;
+  min-height: 100vh;
+  width: 250px;
+  position: fixed;
+  top: 0;
+  left: -260px;
+  transition: left 0.3s ease-in-out;
+  z-index: 1050;
+  padding: 15px;
+}
+
+.sidebar-container.show {
+  left: 0;
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sidebar-link.active{
+  background-color: white;
+  /* border-radius: 15px; */
+  color: #014421 !important;
+  font-weight: 600;
+  border-bottom-left-radius: 20px;
+  border-top-left-radius: 20px;
+}
+
+.sidebar-link:hover:not(.active){
+  background-color: white;
+  border-radius: 15px;
+  color: black !important;
+}
+
+
+/* Pseudo element for curved white background on active item */
+.sidebar-link.active::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: -32px;
+  width: 60px;
+  height: 100%;
+  background-color: white;
+  border-radius: 50px 0 0 50px;
+  z-index: -1;
+  color: #014421 !important; /* if needed */
+}
+
+.sidebar-link {
+  color: white !important;
+  padding: 10px 15px;
+  border-radius: 8px;
+  /* transition: background 0.3s; */
+  position: relative;
+  display: block;
+  transition: all 0.3s ease;
+
+}
+
+.sidebar-link:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+   background-color: white; 
+  /* border-bottom-left-radius: 20px;
+  border-top-left-radius: 20px; */
+ 
+   color: #014421 !important; 
+}
+
+.sidebar-link:hover::after{
+  content: "";
+  position: absolute;
+  /* top: 0;
+  right: -32px; 
+  width: 60px;
+  height: 100%; */
+  color: #014421 !important;
+  background-color: white;
+  border-radius: 50px 0 0 50px; 
+  z-index: -1;
+
+}
+
+/* Desktop always show */
+@media (min-width: 768px) {
+  .sidebar-container {
+    left: 0;
+    position: relative;
+  }
+}

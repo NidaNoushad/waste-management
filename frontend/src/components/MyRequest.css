@@ -1,0 +1,56 @@
+
+
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
+
+.my-requests-page {
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: all 0.3s ease;
+}
+
+.page-title { color: var(--text-primary); font-weight: 600; }
+.page-subtitle { color: var(--text-secondary); font-size: 0.9rem; }
+
+.table-container {
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.dark-mode .table-container { box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+
+.themed-table thead th {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+  font-weight: 600;
+}
+
+.themed-table tbody td {
+  background-color: var(--card-bg);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.themed-table tbody tr:hover:not(.cancelled-row) {
+  background-color: var(--bg-secondary);
+}
+
+.cancelled-row { text-decoration: line-through; opacity: 0.8; }
+.light-mode .cancelled-row td { background: #f8d7da; color: #721c24; }
+.dark-mode .cancelled-row td { background: #4a1e23; color: #f5b2b5; }
+
+.order-id { font-weight: 600; color: #4a6741; }
+.dark-mode .order-id { color: #6fb55f; }
+
+.action-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+.action-btn { font-size: 0.8rem; border-radius: 6px; }
+
+.table-footer { display: flex; justify-content: space-between; padding: 10px; background: var(--bg-secondary); }
+
+@media (max-width: 768px) {
+  .action-buttons { flex-direction: column; gap: 4px; }
+}
