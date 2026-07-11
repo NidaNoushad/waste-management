@@ -15,6 +15,7 @@ from django.db.models import Sum
 from django.utils.decorators import method_decorator
 from rest_framework import serializers
 from rest_framework.permissions import IsAdminUser
+from django.db.models.functions import TruncMonth
 import logging
 # from .utils.invoice_utils import  save_invoice
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -1027,18 +1028,35 @@ class UserDashboardAPIView(APIView):
             }
 
         # 4. Monthly Pickup Trend
+        # monthly_data = (
+        #     WasteRequestStatus.objects.filter(
+        #         waste_request__user=user, 
+        #         status="Complete",
+        #         pickup_date__year=current_year
+        #     )
+        #     .extra(select={"month": "strftime('%%m', pickup_date)"})
+        #     .values("month")
+        #     .annotate(total=Count("id"))
+        # )
+
+        # monthly_dict = {m["month"]: m["total"] for m in monthly_data}
+        # all_months = [f"{i:02d}" for i in range(1, 13)]
+        # monthly_trend = [
+        #     {"month": month, "pickups": monthly_dict.get(month, 0)}
+        #     for month in all_months
+        # ]
+        # 4. Monthly Pickup Trend
         monthly_data = (
             WasteRequestStatus.objects.filter(
                 waste_request__user=user, 
                 status="Complete",
                 pickup_date__year=current_year
             )
-            .extra(select={"month": "strftime('%%m', pickup_date)"})
+            .annotate(month=TruncMonth("pickup_date"))
             .values("month")
             .annotate(total=Count("id"))
         )
-
-        monthly_dict = {m["month"]: m["total"] for m in monthly_data}
+        monthly_dict = {m["month"].strftime("%m"): m["total"] for m in monthly_data}
         all_months = [f"{i:02d}" for i in range(1, 13)]
         monthly_trend = [
             {"month": month, "pickups": monthly_dict.get(month, 0)}
