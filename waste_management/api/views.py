@@ -594,33 +594,128 @@ class WasteRequestPickupViewSet(viewsets.ViewSet):
     pagination_class = CustomPagination 
     #pagination_class = WasteRequestPickupPagination
 
-    def list(self, request):
-        qs = WasteRequest.objects.all().order_by("-created_at")
+    # def list(self, request):
+    #     qs = WasteRequest.objects.all().order_by("-created_at")
        
 
-        # Restrict to only current user's requests if not staff
+    #     # Restrict to only current user's requests if not staff
+    #     if not request.user.is_staff:
+    #         qs = qs.filter(user=request.user)
+
+    #     flat_rows = []
+    #     for req in qs:
+    #         per_date_breakdown = WasteRequestSerializer(req).data.get("per_date_breakdown", {})
+    #         breakdown_dict = {item["pickup_date"]: item["updated_amount"] for item in per_date_breakdown.get("breakdown", [])}
+    #         for d in (req.pickup_dates or []):
+    #             # Check if user has updated this pickup
+    #             # Calculate per-pickup amount
+    #             total_pickups = len(req.pickup_dates or [])
+    #             per_pickup_amount = req.final_amount / max(total_pickups, 1)
+                
+                
+    #             user_update = WasteRequestUserUpdate.objects.filter(
+    #              waste_request=req,
+    #              pickup_date=d
+    #                  ).first()
+    #             # Get the status for this specific pickup date
+    #             status_obj = WasteRequestStatus.objects.filter(
+    #                 waste_request=req, pickup_date=d
+    #             ).first()
+    #             status = status_obj.status if status_obj else "Pending"
+
+    #             if req.payment_method == "Cash on Pickup":
+    #                 if status_obj and status_obj.is_paid:
+    #                     payment_status = "Paid"
+    #                     is_paid = True
+    #                 else:
+    #                     payment_status = "Pending"
+    #                     is_paid = False
+    #             else:
+    # # For online or other methods, use the request's own payment_status
+    #                 payment_status = req.payment_status
+    #                 is_paid = (payment_status.lower() == "paid")
+    #             # find cancelled record for this pickup_date
+    #             cancelled = req.cancelled_pickups.filter(pickup_date=d).first()
+    #             # for pickup in req.pickups.all():  # <-- use related_name 'pickups'
+    #             #  status = pickup.status 
+    #                     # Fetch all feedbacks for this pickup date
+    #             feedbacks = list(req.feedbacks.filter(pickup_date=d).values("comment", "rating", "pickup_date"))
+    #             flat_rows.append({
+    #                 "id": req.id,
+    #                 "waste_request_id": req.id, 
+    #                 # "pickup_id": pickup.id,
+    #                 "order_id": req.order_id,
+    #                 "pickup_date": d,
+    #                  "waste_type": user_update.waste_type if user_update else req.waste_type,
+    #                  "category": user_update.category if user_update else req.category,
+    #                 "payment_method": req.payment_method,
+                  
+    #                 "is_paid": is_paid, 
+    #                 "payment_status": payment_status,
+    #                 "transaction_id": req.transaction_id if req.payment_method != "Cash on Pickup" else None, 
+    #                 "urgency":req.urgency,
+    #                 "status": status,
+    #                 "address": user_update.address if (user_update and user_update.address) else req.address,
+    #                 "email": user_update.email if (user_update and user_update.email) else req.email,
+    #                 "weight": user_update.weight if (user_update and user_update.weight) else req.weight,  #  added weight
+    #                 "amount": breakdown_dict.get(str(d), 0),
+    #                 "per_date_amount": per_pickup_amount,
+    #                 "refund_id": cancelled.refund_id if cancelled else None,
+    #                 "refund_status": cancelled.refund_status if cancelled else None,
+    #                 "refund_amount": cancelled.refund_amount if cancelled else None,
+    #                 "can_update": status in ["Assigned", "Pending"],  # matches frontend logic
+    #                 "can_cancel": status in ["Assigned", "Pending"],  # same
+    #                 "invoice_url": req.invoices.first().invoice_file.url if req.invoices.exists() else None,
+    #                 "feedbacks": feedbacks
+                   
+    #             })
+    def list(self, request):
+        qs = WasteRequest.objects.all().order_by("-created_at")
+
         if not request.user.is_staff:
             qs = qs.filter(user=request.user)
+
+        qs = list(qs)  # evaluate once
+        req_ids = [req.id for req in qs]
+
+        # Batch-fetch all related data in a handful of queries instead of per-row
+        user_updates = WasteRequestUserUpdate.objects.filter(waste_request_id__in=req_ids)
+        user_update_map = {(u.waste_request_id, str(u.pickup_date)): u for u in user_updates}
+
+        statuses = WasteRequestStatus.objects.filter(waste_request_id__in=req_ids)
+        status_map = {(s.waste_request_id, str(s.pickup_date)): s for s in statuses}
+
+        cancelled = WasteRequestCancelled.objects.filter(waste_request_id__in=req_ids)
+        cancelled_map = {(c.waste_request_id, str(c.pickup_date)): c for c in cancelled}
+
+        feedbacks_qs = Feedback.objects.filter(waste_request_id__in=req_ids).values(
+            "waste_request_id", "pickup_date", "comment", "rating"
+        )
+        feedback_map = {}
+        for f in feedbacks_qs:
+            key = (f["waste_request_id"], str(f["pickup_date"]))
+            feedback_map.setdefault(key, []).append({
+                "comment": f["comment"], "rating": f["rating"], "pickup_date": f["pickup_date"]
+            })
+
+        invoices = Invoice.objects.filter(related_request_id__in=req_ids).order_by("related_request_id", "-id")
+        invoice_map = {}
+        for inv in invoices:
+            if inv.related_request_id not in invoice_map:
+                invoice_map[inv.related_request_id] = inv.invoice_file.url if inv.invoice_file else None
 
         flat_rows = []
         for req in qs:
             per_date_breakdown = WasteRequestSerializer(req).data.get("per_date_breakdown", {})
             breakdown_dict = {item["pickup_date"]: item["updated_amount"] for item in per_date_breakdown.get("breakdown", [])}
+
             for d in (req.pickup_dates or []):
-                # Check if user has updated this pickup
-                # Calculate per-pickup amount
+                key = (req.id, str(d))
                 total_pickups = len(req.pickup_dates or [])
                 per_pickup_amount = req.final_amount / max(total_pickups, 1)
-                
-                
-                user_update = WasteRequestUserUpdate.objects.filter(
-                 waste_request=req,
-                 pickup_date=d
-                     ).first()
-                # Get the status for this specific pickup date
-                status_obj = WasteRequestStatus.objects.filter(
-                    waste_request=req, pickup_date=d
-                ).first()
+
+                user_update = user_update_map.get(key)
+                status_obj = status_map.get(key)
                 status = status_obj.status if status_obj else "Pending"
 
                 if req.payment_method == "Cash on Pickup":
@@ -631,43 +726,37 @@ class WasteRequestPickupViewSet(viewsets.ViewSet):
                         payment_status = "Pending"
                         is_paid = False
                 else:
-    # For online or other methods, use the request's own payment_status
                     payment_status = req.payment_status
                     is_paid = (payment_status.lower() == "paid")
-                # find cancelled record for this pickup_date
-                cancelled = req.cancelled_pickups.filter(pickup_date=d).first()
-                # for pickup in req.pickups.all():  # <-- use related_name 'pickups'
-                #  status = pickup.status 
-                        # Fetch all feedbacks for this pickup date
-                feedbacks = list(req.feedbacks.filter(pickup_date=d).values("comment", "rating", "pickup_date"))
+
+                cancelled_rec = cancelled_map.get(key)
+                feedbacks = feedback_map.get(key, [])
+
                 flat_rows.append({
                     "id": req.id,
-                    "waste_request_id": req.id, 
-                    # "pickup_id": pickup.id,
+                    "waste_request_id": req.id,
                     "order_id": req.order_id,
                     "pickup_date": d,
-                     "waste_type": user_update.waste_type if user_update else req.waste_type,
-                     "category": user_update.category if user_update else req.category,
+                    "waste_type": user_update.waste_type if user_update else req.waste_type,
+                    "category": user_update.category if user_update else req.category,
                     "payment_method": req.payment_method,
-                  
-                    "is_paid": is_paid, 
+                    "is_paid": is_paid,
                     "payment_status": payment_status,
-                    "transaction_id": req.transaction_id if req.payment_method != "Cash on Pickup" else None, 
-                    "urgency":req.urgency,
+                    "transaction_id": req.transaction_id if req.payment_method != "Cash on Pickup" else None,
+                    "urgency": req.urgency,
                     "status": status,
                     "address": user_update.address if (user_update and user_update.address) else req.address,
                     "email": user_update.email if (user_update and user_update.email) else req.email,
-                    "weight": user_update.weight if (user_update and user_update.weight) else req.weight,  #  added weight
+                    "weight": user_update.weight if (user_update and user_update.weight) else req.weight,
                     "amount": breakdown_dict.get(str(d), 0),
                     "per_date_amount": per_pickup_amount,
-                    "refund_id": cancelled.refund_id if cancelled else None,
-                    "refund_status": cancelled.refund_status if cancelled else None,
-                    "refund_amount": cancelled.refund_amount if cancelled else None,
-                    "can_update": status in ["Assigned", "Pending"],  # matches frontend logic
-                    "can_cancel": status in ["Assigned", "Pending"],  # same
-                    "invoice_url": req.invoices.first().invoice_file.url if req.invoices.exists() else None,
+                    "refund_id": cancelled_rec.refund_id if cancelled_rec else None,
+                    "refund_status": cancelled_rec.refund_status if cancelled_rec else None,
+                    "refund_amount": cancelled_rec.refund_amount if cancelled_rec else None,
+                    "can_update": status in ["Assigned", "Pending"],
+                    "can_cancel": status in ["Assigned", "Pending"],
+                    "invoice_url": invoice_map.get(req.id),
                     "feedbacks": feedbacks
-                   
                 })
         status_filter = request.query_params.get("status")
         if status_filter and status_filter != "all":
