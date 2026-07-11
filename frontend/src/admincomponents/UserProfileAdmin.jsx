@@ -17,7 +17,7 @@ const UserProfileAdmin = () => {
       try {
         const token = localStorage.getItem("access");
         const res = await fetch(
-          `http://127.0.0.1:8000/api/adminpanel/users/${userId}/profile/`,
+          `${process.env.REACT_APP_API_URL}adminpanel/users/${userId}/profile/`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -47,7 +47,7 @@ const UserProfileAdmin = () => {
     try {
       const token = localStorage.getItem("access");
       const res = await fetch(
-        `http://127.0.0.1:8000/api/adminpanel/users/${userId}/profile/`,
+        `${process.env.REACT_APP_API_URL}adminpanel/users/${userId}/profile/`,
         {
           method: "PUT",
           headers: {

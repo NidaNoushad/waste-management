@@ -10,7 +10,7 @@ const StaffDetail = ({ staff, onClose, refreshList }) => {
     const fetchAreas = async () => {
       try {
         const token = localStorage.getItem("access");
-        const res = await fetch("http://127.0.0.1:8000/api/adminpanel/areas/", {
+        const res = await fetch(`${process.env.REACT_APP_API_URL}adminpanel/areas/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -39,7 +39,7 @@ const StaffDetail = ({ staff, onClose, refreshList }) => {
     try {
       const token = localStorage.getItem("access");
       const res = await fetch(
-        `http://127.0.0.1:8000/api/adminpanel/staff/${staff.id}/assign-areas/`,
+        `${process.env.REACT_APP_API_URL}adminpanel/staff/${staff.id}/assign-areas/`,
         {
           method: "PATCH",
           headers: {

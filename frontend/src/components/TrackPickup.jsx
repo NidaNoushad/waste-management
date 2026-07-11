@@ -28,7 +28,7 @@ const TrackPickup = () => {
   //   const fetchOrders = async () => {
   //     try {
   //       const token = localStorage.getItem("accessToken");
-  //       let url = "http://127.0.0.1:8000/api/waste-request-pickups/";
+  //       let url = `${process.env.REACT_APP_API_URL}waste-request-pickups/`;
   //       let allPickups = [];
   
   //       while (url) {
@@ -75,7 +75,7 @@ useEffect(() => {
   const fetchAllOrders = async () => {
     try {
       const token = localStorage.getItem("accessToken");
-      let url = "http://127.0.0.1:8000/api/waste-request-pickups/";
+      let url = `${process.env.REACT_APP_API_URL}waste-request-pickups/`;
       let allPickups = [];
 
       while (url) {
@@ -168,7 +168,7 @@ const nearestPickup = selectedOrder
       };
 
       const res = await axios.put(
-        `http://127.0.0.1:8000/api/user-update-request/${selectedPickup.id}/`,
+        `${process.env.REACT_APP_API_URL}user-update-request/${selectedPickup.id}/`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -222,7 +222,7 @@ const nearestPickup = selectedOrder
     try {
       const token = localStorage.getItem("accessToken");
       await axios.put(
-        `http://127.0.0.1:8000/api/user-cancel-request/${pickup.id}/`,
+        `${process.env.REACT_APP_API_URL}user-cancel-request/${pickup.id}/`,
         { pickup_date: pickup.pickup_date },
         { headers: { Authorization: `Bearer ${token}` } }
       );

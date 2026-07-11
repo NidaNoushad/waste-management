@@ -14,7 +14,7 @@ const CustomerMessage = () => {
     try {
       const token = localStorage.getItem("access");
       const res = await fetch(
-        `http://127.0.0.1:8000/api/adminpanel/messages/?search=${searchValue}&page=${pageNumber}`,
+        `${process.env.REACT_APP_API_URL}adminpanel/messages/?search=${searchValue}&page=${pageNumber}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -46,7 +46,7 @@ const CustomerMessage = () => {
 
     try {
       const token = localStorage.getItem("access");
-      const res = await fetch(`http://127.0.0.1:8000/api/adminpanel/messages/${id}/`, {
+      const res = await fetch(`${process.env.REACT_APP_API_URL}adminpanel/messages/${id}/`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

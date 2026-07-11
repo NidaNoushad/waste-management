@@ -32,7 +32,7 @@ const PaymentHistory = () => {
       try {
         const token = localStorage.getItem("accessToken");
         const res = await axiosInstance.get(
-          // "http://127.0.0.1:8000/api/waste-request-pickups/",
+          // `${process.env.REACT_APP_API_URL}waste-request-pickups/`,
           "waste-request-pickups/",
           {
             params: { page, page_size: pageSize },

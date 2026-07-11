@@ -12,7 +12,7 @@ const WasteRequestDetail = () => {
       try {
         const token = localStorage.getItem("access");
         const res = await fetch(
-          `http://127.0.0.1:8000/api/adminpanel/wasterequests/${requestId}/`,
+          `${process.env.REACT_APP_API_URL}adminpanel/wasterequests/${requestId}/`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }

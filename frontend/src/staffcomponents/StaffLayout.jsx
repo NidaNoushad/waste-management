@@ -23,7 +23,7 @@ const completionRate =
       const refresh = localStorage.getItem("refresh");
       if (!refresh) throw new Error("No refresh token");
   
-      const res = await axios.post("http://127.0.0.1:8000/api/token/refresh/", {
+      const res = await axios.post(`${process.env.REACT_APP_API_URL}token/refresh/`, {
         refresh,
       });
   
@@ -65,7 +65,7 @@ const completionRate =
       try {
         const token = localStorage.getItem("access");
         const res = await axios.get(
-          "http://127.0.0.1:8000/api/staff/pickups/profile-sidebar/",
+          `${process.env.REACT_APP_API_URL}staff/pickups/profile-sidebar/`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         setSidebarData(res.data);

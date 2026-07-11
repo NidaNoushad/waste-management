@@ -17,7 +17,7 @@ const FeedbackForm = ({ wasteRequestId, pickupDate, onFeedbackSubmitted, existin
     try {
       const token = localStorage.getItem("accessToken");
       const res = await axios.post(
-        `http://127.0.0.1:8000/api/feedback/${wasteRequestId}/`,
+        `${process.env.REACT_APP_API_URL}feedback/${wasteRequestId}/`,
         {
           pickup_date: pickupDate, comment, rating
         },
@@ -100,7 +100,7 @@ const Feedback = () => {
       try {
         const token = localStorage.getItem("accessToken");
         const res = await axios.get(
-          "http://127.0.0.1:8000/api/waste-request-pickups/?status=Complete",
+          `${process.env.REACT_APP_API_URL}waste-request-pickups/?status=Complete`,
           { headers: token ? { Authorization: `Bearer ${token}` } : {} }
         );
         setCompletedPickups(res.data.results);

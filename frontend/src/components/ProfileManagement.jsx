@@ -51,7 +51,7 @@ const ProfileManagement = () => {
     const token = localStorage.getItem("accessToken");
   
     if (token) {
-      fetch("http://127.0.0.1:8000/api/profile/", {
+      fetch(`${process.env.REACT_APP_API_URL}profile/`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -99,7 +99,7 @@ const ProfileManagement = () => {
   
     const token = localStorage.getItem("accessToken");
   
-    fetch("http://127.0.0.1:8000/api/profile/", {
+    fetch(`${process.env.REACT_APP_API_URL}profile/`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -122,7 +122,7 @@ const ProfileManagement = () => {
   const handleSaveProfile = () => {
     const token = localStorage.getItem("accessToken");
   
-    fetch("http://127.0.0.1:8000/api/profile/", {
+    fetch(`${process.env.REACT_APP_API_URL}profile/`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -163,7 +163,7 @@ const ProfileManagement = () => {
     }
   
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/change-password/", {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}change-password/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

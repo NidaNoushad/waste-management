@@ -10,7 +10,7 @@ const StaffList = () => {
   const fetchStaff = async () => {
     try {
       const token = localStorage.getItem("access");
-      const res = await fetch("http://127.0.0.1:8000/api/stafflist/", {
+      const res = await fetch(`${process.env.REACT_APP_API_URL}stafflist/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -31,7 +31,7 @@ const StaffList = () => {
   const toggleActive = async (staffId, currentStatus) => {
     try {
       const token = localStorage.getItem("access");
-      await fetch(`http://127.0.0.1:8000/api/stafflist/${staffId}/`, {
+      await fetch(`${process.env.REACT_APP_API_URL}stafflist/${staffId}/`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -50,7 +50,7 @@ const StaffList = () => {
     if (!window.confirm("Are you sure you want to delete this staff?")) return;
     try {
       const token = localStorage.getItem("access");
-      await fetch(`http://127.0.0.1:8000/api/stafflist/${staffId}/`, {
+      await fetch(`${process.env.REACT_APP_API_URL}stafflist/${staffId}/`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

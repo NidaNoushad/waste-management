@@ -14,7 +14,7 @@ const RequestStatusList = () => {
     try {
       const token = localStorage.getItem("access");
       const res = await fetch(
-        `http://127.0.0.1:8000/api/waste-request-status/?user=${userId}`,
+        `${process.env.REACT_APP_API_URL}waste-request-status/?user=${userId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -33,7 +33,7 @@ const RequestStatusList = () => {
 const fetchStaff = async () => {
   try {
     const token = localStorage.getItem("access");
-    const res = await fetch("http://127.0.0.1:8000/api/activestaff/", {
+    const res = await fetch(`${process.env.REACT_APP_API_URL}activestaff/`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
@@ -51,7 +51,7 @@ const fetchStaff = async () => {
   // Handlers
   const handleStatusChange = async (id, newStatus) => {
     const token = localStorage.getItem("access");
-    await fetch(`http://127.0.0.1:8000/api/waste-request-status/${id}/`, {
+    await fetch(`${process.env.REACT_APP_API_URL}waste-request-status/${id}/`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -65,7 +65,7 @@ const fetchStaff = async () => {
   const handleAssignStaff = async (id, staffId) => {
     console.log("Assigning staff:", staffId, "to request:", id); 
     const token = localStorage.getItem("access");
-    await fetch(`http://127.0.0.1:8000/api/waste-request-status/${id}/`, {
+    await fetch(`${process.env.REACT_APP_API_URL}waste-request-status/${id}/`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -80,7 +80,7 @@ const fetchStaff = async () => {
   const handleDeletePickup = async (id) => {
     if (!window.confirm("Are you sure you want to delete this pickup?")) return;
     const token = localStorage.getItem("access");
-    await fetch(`http://127.0.0.1:8000/api/waste-request-status/${id}/`, {
+    await fetch(`${process.env.REACT_APP_API_URL}waste-request-status/${id}/`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });

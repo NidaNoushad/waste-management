@@ -20,7 +20,7 @@ const UserCancelList = () => {
     try {
       const token = localStorage.getItem("access");
       const res = await fetch(
-        `http://127.0.0.1:8000/api/adminpanel/users/${userId}/user-cancel/`,
+        `${process.env.REACT_APP_API_URL}adminpanel/users/${userId}/user-cancel/`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -43,7 +43,7 @@ const UserCancelList = () => {
     try {
       const token = localStorage.getItem("access");
       
-      await fetch(`http://127.0.0.1:8000/api/adminpanel/user-cancel-request/${cancelId}/`, {
+      await fetch(`${process.env.REACT_APP_API_URL}adminpanel/user-cancel-request/${cancelId}/`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

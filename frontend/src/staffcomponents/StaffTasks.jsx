@@ -20,7 +20,7 @@ const StaffTasks = () => {
     fetchTasks();
   }, []);
 
-  const fetchTasks = async (url = "http://127.0.0.1:8000/api/staff/pickups/") => {
+  const fetchTasks = async (url = `${process.env.REACT_APP_API_URL}staff/pickups/`) => {
     try {
       const token = localStorage.getItem("access"); // 👈 staff login token
       const res = await axios.get(url, {
@@ -51,7 +51,7 @@ const StaffTasks = () => {
   // const fetchTasks = async () => {
   //   try {
   //     const token = localStorage.getItem("access"); // staff login token
-  //     const res = await axios.get("http://127.0.0.1:8000/api/staff/pickups/", {
+  //     const res = await axios.get(`${process.env.REACT_APP_API_URL}staff/pickups/`, {
   //       headers: { Authorization: `Bearer ${token}` },
   //     });
 
@@ -87,7 +87,7 @@ const StaffTasks = () => {
       const token = localStorage.getItem("access");
   
       const res = await axios.put(
-        `http://127.0.0.1:8000/api/staff/pickups/${task.status_id}/update-status/`,
+        `${process.env.REACT_APP_API_URL}staff/pickups/${task.status_id}/update-status/`,
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -310,7 +310,7 @@ const StaffTasks = () => {
       try {
         const token = localStorage.getItem("access");
         const res = await axios.put(
-          `http://127.0.0.1:8000/api/staff/pickups/${selectedTask.status_id}/confirm-payment/`,
+          `${process.env.REACT_APP_API_URL}staff/pickups/${selectedTask.status_id}/confirm-payment/`,
           {},
           { headers: { Authorization: `Bearer ${token}` } }
         );

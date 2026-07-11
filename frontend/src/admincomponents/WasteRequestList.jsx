@@ -17,7 +17,7 @@ const WasteRequestList = () => {
       try {
         const token = localStorage.getItem("access");
         const res = await fetch(
-          `http://127.0.0.1:8000/api/waste-requests/?user=${userId}`,
+          `${process.env.REACT_APP_API_URL}waste-requests/?user=${userId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }

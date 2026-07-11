@@ -10,7 +10,7 @@ const AdminPickupDates = () => {
   // Fetch cities
   useEffect(() => {
     const fetchCities = async () => {
-      const res = await fetch("http://127.0.0.1:8000/api/cities/");
+      const res = await fetch(`${process.env.REACT_APP_API_URL}cities/`);
       const data = await res.json();
       setCities(data);
       setLoading(false);
@@ -31,7 +31,7 @@ const AdminPickupDates = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem("access");
-      const res = await fetch("http://127.0.0.1:8000/api/adminpanel/pickupdates/", {
+      const res = await fetch(`${process.env.REACT_APP_API_URL}adminpanel/pickupdates/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

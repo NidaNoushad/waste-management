@@ -16,7 +16,7 @@ const ContactDetails = ({ onSubmit, onBack, defaultValues = {} }) => {
 
     const token = localStorage.getItem("accessToken");
     if (token) {
-      fetch("http://127.0.0.1:8000/api/profile/", {
+      fetch(`${process.env.REACT_APP_API_URL}profile/`, {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then(res => res.json())

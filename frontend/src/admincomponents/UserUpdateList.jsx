@@ -17,7 +17,7 @@ const paginatedUpdates = updates.slice((page - 1) * itemsPerPage, page * itemsPe
     setLoading(true);
     try {
       const token = localStorage.getItem("access");
-      const res = await fetch(`http://127.0.0.1:8000/api/adminpanel/users/${userId}/user-updates/`, {
+      const res = await fetch(`${process.env.REACT_APP_API_URL}adminpanel/users/${userId}/user-updates/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -37,7 +37,7 @@ const paginatedUpdates = updates.slice((page - 1) * itemsPerPage, page * itemsPe
   const handleRefundStatusChange = async (updateId, newStatus) => {
     try {
       const token = localStorage.getItem("access");
-      await fetch(`http://127.0.0.1:8000/api/user-update-request/${updateId}/`, {
+      await fetch(`${process.env.REACT_APP_API_URL}user-update-request/${updateId}/`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

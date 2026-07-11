@@ -49,7 +49,7 @@ const ContactUs = () => {
     try {
       const token = localStorage.getItem("accessToken");
       const res = await axios.post(
-        "http://127.0.0.1:8000/api/contact/", // backend URL
+        `${process.env.REACT_APP_API_URL}contact/`, // backend URL
         formData,
         {
           headers: {

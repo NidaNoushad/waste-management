@@ -19,7 +19,7 @@ const ManageUser = () => {
           return;
         }
 
-        const res = await fetch("http://127.0.0.1:8000/api/adminpanel/users/", {
+        const res = await fetch(`${process.env.REACT_APP_API_URL}adminpanel/users/`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
