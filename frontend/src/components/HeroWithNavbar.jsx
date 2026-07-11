@@ -40,7 +40,7 @@ const HeroWithNavbar = () => {
 
 
   useEffect(() => {
-    axios.get('http://localhost:8000/api/cities/')
+    axios.get(`${process.env.REACT_APP_API_URL}cities/`)
       .then(res => setCities(res.data))
       .catch(err => console.error(err));
   }, []);
@@ -48,7 +48,7 @@ const HeroWithNavbar = () => {
   // Fetch dates when city changes
   useEffect(() => {
     if (selectedCity) {
-      axios.get(`http://localhost:8000/api/cities/${selectedCity}/pickupdates/`)
+      axios.get(`${process.env.REACT_APP_API_URL}cities/${selectedCity}/pickupdates/`)
         .then(res => setPickupDates(res.data))
         .catch(err => console.error(err));
     }
