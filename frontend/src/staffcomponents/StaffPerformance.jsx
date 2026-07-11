@@ -8,7 +8,7 @@ const StaffPerformance = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await axios.get("/api/staff/pickups/overall-dashboard/", {
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}staff/pickups/overall-dashboard/`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("access")}` },
         });
         setData(res.data);

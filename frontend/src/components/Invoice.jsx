@@ -16,7 +16,7 @@ const uploadInvoice = async (pdfBlob, requestId, updateId = null) => {
   if (updateId) formData.append("related_update", updateId);
 
   try {
-    await axios.post("/api/invoices/", formData, {
+    await axios.post(`${process.env.REACT_APP_API_URL}invoices/`, formData, {
       headers: {
         "Authorization": `Bearer ${token}`,
         "Content-Type": "multipart/form-data",
@@ -47,7 +47,7 @@ const Invoice = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("accessToken");
-      const res = await axios.get(`/api/waste-requests/${id}/`, {
+      const res = await axios.get(`${process.env.REACT_APP_API_URL}waste-requests/${id}/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setData(res.data);

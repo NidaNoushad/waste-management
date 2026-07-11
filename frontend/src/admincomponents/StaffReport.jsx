@@ -19,7 +19,7 @@
 //           return;
 //         }
 
-//         const res = await axios.get("/api/adminpanel/staff-performance/", {
+//         const res = await axios.get(`${process.env.REACT_APP_API_URL}adminpanel/staff-performance/`, {
 //           headers: {
 //             Authorization: `Bearer ${token}`,
 //           },
@@ -100,7 +100,7 @@ const StaffReport = () => {
           return;
         }
 
-        const res = await axios.get("/api/adminpanel/staff-performance/", {
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}adminpanel/staff-performance/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 

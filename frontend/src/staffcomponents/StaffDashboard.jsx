@@ -16,7 +16,7 @@ const StaffDashboard = () => {
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        const response = await axios.get("/api/staff/pickups/dashboard/", {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}staff/pickups/dashboard/`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("access")}`, // if JWT auth
           },
